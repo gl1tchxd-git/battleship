@@ -1,19 +1,24 @@
-plugins {
-    id 'java'
+allprojects {
+    version = '1.0-SNAPSHOT'
+    group = 'at.gl1tchxd'
+
+    repositories {
+        mavenCentral()
+        maven { url 'https://oss.sonatype.org/content/repositories/snapshots/' }
+        maven { url 'https://jitpack.io' }
+    }
 }
 
-group = 'at.gl1tchxd'
-version = '1.0-SNAPSHOT'
-
-repositories {
-    mavenCentral()
+ext {
+    gdxVersion = '1.12.1'
+    kryonetVersion = '2.22.0-RC1'
 }
 
-dependencies {
-    testImplementation platform('org.junit:junit-bom:5.10.0')
-    testImplementation 'org.junit.jupiter:junit-jupiter'
-}
+subprojects {
+    apply plugin: 'java-library'
 
-test {
-    useJUnitPlatform()
+    java {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+    }
 }
