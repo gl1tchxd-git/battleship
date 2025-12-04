@@ -1,22 +1,23 @@
 package at.gl1tchxd.battleship;
 
+import at.gl1tchxd.battleship.screens.MainMenuScreen;
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
-import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.utils.ScreenUtils;
+import com.badlogic.gdx.utils.viewport.FitViewport;
 
 public class BattleshipGame extends Game {
-    public SpriteBatch batch;
-    public BitmapFont font;
+    private SpriteBatch batch;
+    private FitViewport viewport;
 
     @Override
     public void create() {
-        batch = new SpriteBatch();
-        font = new BitmapFont(); // Uses libGDX's default Arial font
-
-        // Set the initial screen (main menu, game screen, etc.)
-        // this.setScreen(new MainMenuScreen(this));
+        this.batch = new SpriteBatch(); // Add this line
+        this.viewport = new FitViewport(8, 5);
+        this.setScreen(new MainMenuScreen(this));
     }
 
     @Override
@@ -25,12 +26,21 @@ public class BattleshipGame extends Game {
         Gdx.gl.glClearColor(0.1f, 0.2f, 0.4f, 1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
+        viewport.apply();
+        batch.setProjectionMatrix(viewport.getCamera().combined);
+
         super.render(); // Important: this calls the active screen's render method
     }
 
     @Override
+    public void resize(int width, int height) {
+        viewport.update(width, height, true);
+    }
+
+    @Override
     public void dispose() {
-        batch.dispose();
-        font.dispose();
+        if (batch != null) {
+            batch.dispose();
+        }
     }
 }
