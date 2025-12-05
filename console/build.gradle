@@ -1,0 +1,13 @@
+apply plugin: 'application'
+
+dependencies {
+    implementation project(':core')
+}
+
+application {
+    mainClass = 'at.gl1tchxd.battleship.ConsoleLauncher'
+}
+
+jar {
+    archiveBaseName = 'battleship-console'
+}

@@ -8,6 +8,7 @@ public class Ship {
     private boolean horizontal;
 
     public Ship(int length) {
+        if (length <= 0) throw new IllegalArgumentException("length must be > 0");
         this.length = length;
         this.hits = new boolean[length];
     }
@@ -34,6 +35,7 @@ public class Ship {
     public boolean hitAt(int row, int col) {
         if (!occupies(row, col)) return false;
         int offset = horizontal ? col - this.col : row - this.row;
+        if (offset < 0 || offset >= length) return false;
         hits[offset] = true;
         return true;
     }
@@ -45,5 +47,14 @@ public class Ship {
 
     public int getLength() {
         return length;
+    }
+    public int getStartRow() {
+        return row;
+    }
+    public int getStartCol() {
+        return col;
+    }
+    public boolean isHorizontal() {
+        return horizontal;
     }
 }
