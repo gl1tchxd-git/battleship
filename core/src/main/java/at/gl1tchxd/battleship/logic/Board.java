@@ -16,8 +16,8 @@ public class Board {
 
     /**
      * Create a board.
-     * @param boardSize size of the board
-     * @param trackingMode if true, this is a tracking-only board (no ship placement, only hit/miss tracking)
+     * boardSize size of the board
+     * trackingMode if true, this is a tracking-only board (no ship placement, only hit/miss tracking)
      */
     public Board(int boardSize, boolean trackingMode) {
         if (boardSize <= 0) throw new IllegalArgumentException("boardSize must be > 0");
@@ -38,13 +38,6 @@ public class Board {
     private boolean inBounds(int row, int col) {
         return row >= 0 && row < grid.length && col >= 0 && col < grid[0].length;
     }
-
-    /**
-     * Manually mark a cell with hit or miss (for tracking boards).
-     * @param row row index
-     * @param col column index
-     * @param hit true for hit, false for miss
-     */
     public void markCell(int row, int col, boolean hit) {
         if (!trackingMode) throw new IllegalStateException("markCell() only available in tracking mode");
         if (row < 0 || col < 0) throw new IndexOutOfBoundsException("row and col must be >= 0");
@@ -192,7 +185,7 @@ public class Board {
 
     @Override
     public String toString() {
-        return toString(false);
+        return toString(true);
     }
 
     /**
@@ -202,7 +195,8 @@ public class Board {
      */
     public String toString(boolean useAnsi) {
         StringBuilder sb = new StringBuilder();
-        int n = board.length;
+        // Use grid length because in tracking mode `board` is null
+        int n = grid.length;
 
         // Determine width for row index column
         int idxWidth = Math.max(2, String.valueOf(n - 1).length());
@@ -267,3 +261,4 @@ public class Board {
         return sb.toString();
     }
 }
+

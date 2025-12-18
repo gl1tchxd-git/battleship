@@ -1,158 +1,309 @@
 package at.gl1tchxd.battleship.network;
 
-import at.gl1tchxd.battleship.logic.GameController;
-
 import java.io.*;
-import java.net.ServerSocket;
-import java.net.Socket;
+import java.net.*;
+import java.util.UUID;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 /**
- * Main networking class that handles P2P TCP connections.
- * Can act as either host (server) or client.
+ * Simple P2P network manager for battleship game.
+ * Handles TCP socket connections between two players.
  */
 public class NetworkManager {
-    private Socket socket;
-    private ServerSocket serverSocket;
-    private BufferedReader reader;
-    private PrintWriter writer;
+
+    private final String playerId;
     private NetworkListener listener;
-    private MessageHandler messageHandler;
-    private GameController gameController;
 
-    private boolean isHost = false;
-    private boolean connected = false;
+    private Socket socket;
+    private ObjectOutputStream out;
+    private ObjectInputStream in;
+    private ServerSocket serverSocket;
 
-    public NetworkManager(GameController gameController) {
-        this.gameController = gameController;
-        this.messageHandler = new MessageHandler(gameController, this);
+    private Thread serverThread;
+    private Thread receiveThread;
+    private BlockingQueue<GamePacket> sendQueue;
+    private Thread sendThread;
+
+    private volatile boolean running = false;
+    private String opponentId;
+
+    /**
+     * Create a new NetworkManager with a random player ID.
+     */
+    public NetworkManager() {
+        this(UUID.randomUUID().toString());
     }
 
     /**
-     * Start as host - wait for another player to connect.
-     * @param port The port to listen on (e.g., 12345)
-     * @return true if successfully started listening
+     * Create a new NetworkManager with a specific player ID.
+     * @param playerId The player's unique identifier
      */
-    public boolean startHost(int port) throws IOException {
-        System.out.println("Starting host on port " + port + "...");
+    public NetworkManager(String playerId) {
+        this.playerId = playerId;
+        this.sendQueue = new LinkedBlockingQueue<>();
+    }
+
+    /**
+     * Set the network listener for receiving events.
+     */
+    public void setListener(NetworkListener listener) {
+        this.listener = listener;
+    }
+
+    /**
+     * Get this player's ID.
+     */
+    public String getPlayerId() {
+        return playerId;
+    }
+
+    /**
+     * Get the opponent's ID.
+     */
+    public String getOpponentId() {
+        return opponentId;
+    }
+
+    /**
+     * Start hosting a game on the specified port.
+     * @param port The port to listen on
+     */
+    public void host(int port) throws IOException {
+        if (running) {
+            throw new IllegalStateException("Already connected or hosting");
+        }
 
         serverSocket = new ServerSocket(port);
-        isHost = true;
+        running = true;
 
-        System.out.println("Waiting for opponent to connect...");
-        socket = serverSocket.accept(); // Blocks until client connects
+        serverThread = new Thread(() -> {
+            try {
+                System.out.println("Waiting for opponent to connect on port " + port + "...");
+                socket = serverSocket.accept();
+                System.out.println("Opponent connected from: " + socket.getInetAddress());
 
-        setupConnection();
+                setupStreams();
+                startCommunication();
 
-        System.out.println("Opponent connected from: " + socket.getInetAddress().getHostAddress());
+                // Send connection accept
+                GamePacket connectPacket = new GamePacket(PacketType.CONNECT_ACCEPT, playerId);
+                send(connectPacket);
 
-        // Send our player ID
-        sendMessage(NetworkMessage.connect(gameController.getPlayerId()));
+            } catch (IOException e) {
+                if (running) {
+                    notifyError("Host error: " + e.getMessage());
+                }
+            }
+        }, "Server-Thread");
 
-        return true;
+        serverThread.start();
     }
 
     /**
-     * Connect to a host as client.
-     * @param host The IP address or hostname of the host (e.g., "192.168.1.100" or "localhost")
-     * @param port The port to connect to (e.g., 12345)
-     * @return true if successfully connected
+     * Connect to a hosted game.
+     * @param host The host address
+     * @param port The host port
      */
-    public boolean connectToHost(String host, int port) throws IOException {
-        System.out.println("Connecting to " + host + ":" + port + "...");
+    public void connect(String host, int port) throws IOException {
+        if (running) {
+            throw new IllegalStateException("Already connected or hosting");
+        }
 
-        socket = new Socket(host, port);
-        isHost = false;
+        running = true;
 
-        setupConnection();
+        try {
+            System.out.println("Connecting to " + host + ":" + port + "...");
+            socket = new Socket(host, port);
+            System.out.println("Connected to host!");
 
-        System.out.println("Connected to host!");
+            setupStreams();
+            startCommunication();
 
-        // Send our player ID
-        sendMessage(NetworkMessage.connect(gameController.getPlayerId()));
+            // Send connection request
+            GamePacket connectPacket = new GamePacket(PacketType.CONNECT_REQUEST, playerId);
+            send(connectPacket);
 
-        return true;
+        } catch (IOException e) {
+            running = false;
+            throw e;
+        }
     }
 
     /**
-     * Setup input/output streams and start listening thread.
+     * Setup input/output streams for the socket.
      */
-    private void setupConnection() throws IOException {
-        reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-        writer = new PrintWriter(socket.getOutputStream(), true); // auto-flush
-
-        listener = new NetworkListener(reader, messageHandler);
-        listener.start();
-
-        connected = true;
+    private void setupStreams() throws IOException {
+        // Output stream must be created BEFORE input stream
+        out = new ObjectOutputStream(socket.getOutputStream());
+        out.flush();
+        in = new ObjectInputStream(socket.getInputStream());
     }
 
     /**
-     * Send a message to the opponent.
+     * Start the send and receive threads.
      */
-    public void sendMessage(NetworkMessage message) {
-        if (!connected || writer == null) {
-            System.err.println("Cannot send message - not connected");
+    private void startCommunication() {
+        // Send thread
+        sendThread = new Thread(() -> {
+            while (running && !Thread.currentThread().isInterrupted()) {
+                try {
+                    GamePacket packet = sendQueue.take();
+                    out.writeObject(packet);
+                    out.flush();
+                    out.reset(); // Prevent memory leak from caching
+                } catch (InterruptedException e) {
+                    break;
+                } catch (IOException e) {
+                    if (running) {
+                        notifyError("Send error: " + e.getMessage());
+                        disconnect();
+                    }
+                    break;
+                }
+            }
+        }, "Send-Thread");
+        sendThread.start();
+
+        // Receive thread
+        receiveThread = new Thread(() -> {
+            while (running && !Thread.currentThread().isInterrupted()) {
+                try {
+                    Object obj = in.readObject();
+                    if (obj instanceof GamePacket) {
+                        GamePacket packet = (GamePacket) obj;
+                        handlePacket(packet);
+                    }
+                } catch (EOFException | SocketException e) {
+                    if (running) {
+                        notifyDisconnected("Connection closed");
+                        disconnect();
+                    }
+                    break;
+                } catch (IOException | ClassNotFoundException e) {
+                    if (running) {
+                        notifyError("Receive error: " + e.getMessage());
+                        disconnect();
+                    }
+                    break;
+                }
+            }
+        }, "Receive-Thread");
+        receiveThread.start();
+    }
+
+    /**
+     * Handle incoming packets.
+     */
+    private void handlePacket(GamePacket packet) {
+        // Handle connection packets
+        if (packet.getType() == PacketType.CONNECT_REQUEST ||
+            packet.getType() == PacketType.CONNECT_ACCEPT) {
+            opponentId = packet.getSenderId();
+            notifyConnected(opponentId);
+        } else if (packet.getType() == PacketType.DISCONNECT) {
+            notifyDisconnected("Opponent disconnected");
+            disconnect();
             return;
         }
 
-        System.out.println("Sending: " + message);
-        writer.println(message.serialize());
+        // Forward to listener
+        if (listener != null) {
+            listener.onPacketReceived(packet);
+        }
     }
 
     /**
-     * Send attack to opponent.
+     * Send a packet to the opponent.
+     * @param packet The packet to send
      */
-    public void sendAttack(int row, int col) {
-        sendMessage(NetworkMessage.attack(row, col));
+    public void send(GamePacket packet) {
+        if (!running) {
+            System.err.println("Cannot send packet: not connected");
+            return;
+        }
+        sendQueue.offer(packet);
     }
 
     /**
-     * Send ready signal after ship placement is complete.
+     * Check if connected to an opponent.
      */
-    public void sendReady() {
-        gameController.confirmPlacement();
-        sendMessage(NetworkMessage.ready(gameController.getPlayerId()));
+    public boolean isConnected() {
+        return running && socket != null && socket.isConnected() && !socket.isClosed();
     }
 
     /**
-     * Close the connection and cleanup resources.
+     * Disconnect from the opponent.
      */
     public void disconnect() {
-        if (connected) {
-            sendMessage(NetworkMessage.disconnect(gameController.getPlayerId()));
+        if (!running) {
+            return;
         }
 
-        connected = false;
+        running = false;
 
-        if (listener != null) {
-            listener.stopListening();
-        }
-
+        // Send disconnect packet if possible
         try {
-            if (reader != null) reader.close();
-            if (writer != null) writer.close();
-            if (socket != null && !socket.isClosed()) socket.close();
-            if (serverSocket != null && !serverSocket.isClosed()) serverSocket.close();
+            if (out != null) {
+                GamePacket disconnectPacket = new GamePacket(PacketType.DISCONNECT, playerId);
+                out.writeObject(disconnectPacket);
+                out.flush();
+            }
         } catch (IOException e) {
-            System.err.println("Error closing connection: " + e.getMessage());
+            // Ignore, we're disconnecting anyway
         }
+
+        // Close threads
+        if (sendThread != null) sendThread.interrupt();
+        if (receiveThread != null) receiveThread.interrupt();
+        if (serverThread != null) serverThread.interrupt();
+
+        // Close streams and sockets
+        closeQuietly(in);
+        closeQuietly(out);
+        closeQuietly(socket);
+        closeQuietly(serverSocket);
+
+        in = null;
+        out = null;
+        socket = null;
+        serverSocket = null;
+        opponentId = null;
+        sendQueue.clear();
 
         System.out.println("Disconnected");
     }
 
-    public boolean isConnected() {
-        return connected && socket != null && !socket.isClosed();
-    }
-
-    public boolean isHost() {
-        return isHost;
-    }
-
-    public String getOpponentAddress() {
-        if (socket != null) {
-            return socket.getInetAddress().getHostAddress();
+    /**
+     * Close a closeable resource without throwing exceptions.
+     */
+    private void closeQuietly(Closeable closeable) {
+        if (closeable != null) {
+            try {
+                closeable.close();
+            } catch (IOException e) {
+                // Ignore
+            }
         }
-        return null;
+    }
+
+    // Notification methods
+    private void notifyConnected(String opponentId) {
+        if (listener != null) {
+            listener.onConnected(opponentId);
+        }
+    }
+
+    private void notifyDisconnected(String reason) {
+        if (listener != null) {
+            listener.onDisconnected(reason);
+        }
+    }
+
+    private void notifyError(String error) {
+        if (listener != null) {
+            listener.onError(error);
+        }
     }
 }
 

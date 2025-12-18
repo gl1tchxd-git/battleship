@@ -1,13 +1,12 @@
 package at.gl1tchxd.battleship.logic;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 
 public class Game {
     private final int boardSize;
     private final Board board;
     private final Ship[] fleet;
+    private final int[] shipConfig;
     private final Random rand = new Random();
 
     /**
@@ -50,6 +49,7 @@ public class Game {
             }
         }
         this.fleet = list.toArray(new Ship[0]);
+        this.shipConfig = Arrays.copyOf(shipConfig, shipConfig.length);
     }
 
     // Place the ship from the fleet at index. Returns true on success.
@@ -106,10 +106,17 @@ public class Game {
         }
         return true;
     }
-
+    public int[] getShipConfig() { return shipConfig; }
     public Board getBoard() { return board; }
-    public Ship[] getFleet() { return fleet; }
-    public int getBoardSize() { return boardSize; }
+    public Map<Integer, Ship[]> getFleet() {
+        Map<Integer, Ship[]> sorted_fleet = new HashMap<Integer, Ship[]>(5);
+        int cut_min = 0;
+        for (int i = 0; i < 5; i++) {
+            sorted_fleet.put(i, Arrays.copyOfRange(fleet, cut_min, cut_min + shipConfig[i]));
+            cut_min += shipConfig[i];
+        }
+        return sorted_fleet;
+    }
 
     private boolean validIndex(int index) {
         return index >= 0 && index < fleet.length;

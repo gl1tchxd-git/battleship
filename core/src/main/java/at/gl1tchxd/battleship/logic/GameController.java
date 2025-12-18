@@ -1,5 +1,7 @@
 package at.gl1tchxd.battleship.logic;
 
+import java.util.Map;
+
 public class GameController {
     private Game game;
     private Board myBoard;
@@ -95,11 +97,7 @@ public class GameController {
     public void confirmPlacement() {
         if (game == null) throw new IllegalStateException("Game not initialized");
         placementComplete = true;
-
-        // Check if both players are ready to start battle
-        if (opponentReady) {
-            currentPhase = GamePhase.BATTLE;
-        }
+        tryStartBattle();
     }
 
     public boolean isOpponentReady() {
@@ -108,9 +106,11 @@ public class GameController {
 
     public void setOpponentReady(boolean ready) {
         this.opponentReady = ready;
+        tryStartBattle();
+    }
 
-        // If both ready, move to battle phase
-        if (ready && placementComplete) {
+    private void tryStartBattle() {
+        if (placementComplete && opponentReady) {
             currentPhase = GamePhase.BATTLE;
         }
     }
@@ -152,7 +152,7 @@ public class GameController {
     /**
      * Export fleet information for game state sync.
      */
-    public Ship[] exportFleet() {
+    public Map<Integer, Ship[]> exportFleet() {
         if (game == null) return null;
         return game.getFleet();
     }
@@ -188,16 +188,6 @@ public class GameController {
         return game.placeShip(index, row, col, horizontal);
     }
 
-    /**
-     * Attack opponent's board (through network).
-     * This updates your tracking board after receiving the result.
-     */
-    public boolean attack(int row, int col) {
-        if (game == null) throw new IllegalStateException("Game not initialized");
-        // Note: This method should be called AFTER network sends attack and receives result
-        // The actual hit/miss will be recorded via recordAttackResult()
-        return true; // Placeholder - network layer handles actual attack
-    }
 
     /**
      * Attack and return detailed result information.
@@ -213,10 +203,12 @@ public class GameController {
     public boolean isGameOver() {
         if (game == null) return false;
 
-        Ship[] fleet = game.getFleet();
-        for (Ship ship : fleet) {
-            if (!ship.isSunk()) {
-                return false;
+        Map<Integer, Ship[]> fleet = game.getFleet();
+        for (Ship[] ships : fleet.values()) {
+            for (Ship ship : ships) {
+                if (!ship.isSunk()) {
+                    return false;
+                }
             }
         }
         return true;
@@ -229,23 +221,66 @@ public class GameController {
         if (game == null) return 0;
 
         int count = 0;
-        Ship[] fleet = game.getFleet();
-        for (Ship ship : fleet) {
-            if (!ship.isSunk()) {
-                count++;
+        Map<Integer, Ship[]> fleet = game.getFleet();
+        for (Ship[] ships : fleet.values()) {
+            for (Ship ship : ships) {
+                if (!ship.isSunk()) {
+                    count++;
+                }
             }
         }
         return count;
     }
 
+
     public Game getGame() {
         return game;
+    }
+
+    /**
+     * Export sunk / total ship counts in a privacy-preserving way.
+     * Returns an int array where each row is [sunkCount, totalCount] for a ship-size class.
+     */
+    public int[][] exportSunk() {
+        Map<Integer, Ship[]> fleet = null;
+        int classes = 5; // fallback
+        if (game == null) {
+            // return zeros for standard 5 classes
+            int[][] result = new int[classes][2];
+            for (int i = 0; i < classes; i++) {
+                result[i][0] = 0;
+                result[i][1] = 0;
+            }
+            return result;
+        } else {
+            fleet = game.getFleet();
+            int[] cfg = game.getShipConfig();
+            if (cfg != null) classes = cfg.length;
+        }
+
+        int[][] result = new int[classes][2];
+        for (int i = 0; i < classes; i++) {
+            int sunkCount = 0;
+            int totalCount = 0;
+            Ship[] ships = fleet.get(i);
+            if (ships != null) {
+                totalCount = ships.length;
+                for (Ship ship : ships) {
+                    if (ship.isSunk()) {
+                        sunkCount++;
+                    }
+                }
+            }
+            result[i][0] = sunkCount;
+            result[i][1] = totalCount;
+        }
+        return result;
     }
 
     @Override
     public String toString() {
         if (game == null) return "Game not initialized";
-        return game.getBoard().toString();
+        return game.getBoard().toString(true);
     }
 
     /**
