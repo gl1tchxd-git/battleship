@@ -7,18 +7,18 @@ import at.gl1tchxd.battleship.logic.GamePhase;
  * Helper class that bridges NetworkManager with GameController.
  * Provides simple methods for common network operations.
  */
-public class NetworkGameController implements NetworkListener {
+public class NetworkController implements NetworkListener {
 
     private final NetworkManager networkManager;
     private final GameController gameController;
 
-    public NetworkGameController(GameController gameController) {
+    public NetworkController(GameController gameController) {
         this.gameController = gameController;
         this.networkManager = new NetworkManager();
         this.networkManager.setListener(this);
     }
 
-    public NetworkGameController(GameController gameController, String playerId) {
+    public NetworkController(GameController gameController, String playerId) {
         this.gameController = gameController;
         this.networkManager = new NetworkManager(playerId);
         this.networkManager.setListener(this);

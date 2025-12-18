@@ -29,7 +29,7 @@ public class NetworkUsageExample {
         GameController gameController = new GameController();
 
         // Create network game controller with custom event handlers
-        NetworkGameController networkController = new NetworkGameController(gameController) {
+        NetworkController networkController = new NetworkController(gameController) {
             @Override
             protected void onOpponentConnected(String opponentId) {
                 System.out.println("Opponent connected: " + opponentId);
@@ -112,7 +112,7 @@ public class NetworkUsageExample {
     public static void exampleJoinGame() {
         GameController gameController = new GameController();
 
-        NetworkGameController networkController = new NetworkGameController(gameController) {
+        NetworkController networkController = new NetworkController(gameController) {
             @Override
             protected void onOpponentConnected(String opponentId) {
                 System.out.println("Connected to host: " + opponentId);
@@ -140,7 +140,7 @@ public class NetworkUsageExample {
     /**
      * Example: Complete game flow for making an attack
      */
-    public static void exampleAttackFlow(NetworkGameController networkController, GameController gameController) {
+    public static void exampleAttackFlow(NetworkController networkController, GameController gameController) {
         // Check if it's your turn
         if (gameController.isMyTurn()) {
             // Make an attack (example: row 5, col 3)
@@ -161,7 +161,7 @@ public class NetworkUsageExample {
     /**
      * Example: Placement phase completion
      */
-    public static void examplePlacementFlow(NetworkGameController networkController, GameController gameController) {
+    public static void examplePlacementFlow(NetworkController networkController, GameController gameController) {
         // After player places all ships
         // Place ships using gameController.placeShip(...)
 
