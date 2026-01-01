@@ -18,8 +18,8 @@ import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
 
 public class MainMenuScreen implements Screen {
     private final BattleshipGame game;
+
     private Texture mainMenuTexture;
-    private Texture mainMenuLogo;
     private SpriteBatch batch;
     private FreeTypeFontGenerator fontGen;
 
@@ -33,10 +33,7 @@ public class MainMenuScreen implements Screen {
     @Override
     public void show() {
         if (mainMenuTexture == null) {
-            mainMenuTexture = new Texture(Gdx.files.internal("sprites/main_menu_background.jpg"));
-        }
-        if (mainMenuLogo == null) {
-            mainMenuLogo = new Texture(Gdx.files.internal("sprites/logo.png"));
+            mainMenuTexture = new Texture(Gdx.files.internal("sprites/main-menu_background.png"));
         }
         if (batch == null) batch = new SpriteBatch();
         if (fontGen == null) fontGen = new FreeTypeFontGenerator(Gdx.files.internal("fonts/BBHBartle-Regular.ttf"));
@@ -54,7 +51,6 @@ public class MainMenuScreen implements Screen {
         if (batch == null || fontGen == null || mainMenuTexture == null) return;
         batch.begin();
         batch.draw(mainMenuTexture, 0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-        batch.draw(mainMenuLogo, (Gdx.graphics.getWidth() - mainMenuLogo.getWidth()) / 2f, Gdx.graphics.getHeight() * 0.6f);
 
         FreeTypeFontGenerator.FreeTypeFontParameter param = new FreeTypeFontGenerator.FreeTypeFontParameter();
         param.color = com.badlogic.gdx.graphics.Color.BLACK;

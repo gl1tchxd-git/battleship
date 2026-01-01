@@ -126,13 +126,6 @@ public class ConsoleLauncher {
         GameController gameController = new GameController();
 
         NetworkController networkController = new NetworkController(gameController) {
-            @Override
-            protected void onOpponentConnected(String opponentId) {
-                System.out.println("Opponent connected: " + opponentId);
-
-                gameController.initializeGame(boardSize, shipConfig);
-                sendGameInit(boardSize, shipConfig);
-            }
 
             @Override
             protected void onGameInitReceived(int boardSize, int[] shipConfig) {

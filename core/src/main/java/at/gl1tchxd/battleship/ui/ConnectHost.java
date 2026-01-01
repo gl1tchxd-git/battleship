@@ -18,73 +18,26 @@ public class ConnectHost {
     private Table table;
     private Skin skin;
 
+    private final int x;
+    private final int y;
+
     private TextField portField;
     private TextField boardSizeField;
-    private TextField shipConfigField;
+    private TextField[] shipConfigField;
     private TextButton hostButton;
     private Label statusLabel;
 
     private final NetworkController networkController;
-    private HostCallback callback;
 
-    /**
-     * Callback interface for host events.
-     */
-    public interface HostCallback {
-        void onHostSuccess(int port, int boardSize, int[] shipConfig);
-        void onHostError(String error);
-    }
-
-    public ConnectHost(NetworkController networkController) {
+    public ConnectHost(NetworkController networkController, Skin skin, Stage stage, int x, int y) {
         this.networkController = networkController;
-        this.stage = new Stage(new ScreenViewport());
-        createDefaultSkin();
+        this.stage = stage;
+        this.skin = skin;
+        this.x = x;
+        this.y = y;
         createUI();
     }
 
-    /**
-     * Create a simple default skin for the UI.
-     */
-    private void createDefaultSkin() {
-        skin = new Skin();
-        BitmapFont font = new BitmapFont();
-        skin.add("default", font);
-
-        // Create a white 1x1 pixel texture for drawables
-        com.badlogic.gdx.graphics.Pixmap pixmap = new com.badlogic.gdx.graphics.Pixmap(1, 1, com.badlogic.gdx.graphics.Pixmap.Format.RGBA8888);
-        pixmap.setColor(Color.WHITE);
-        pixmap.fill();
-        skin.add("white", new com.badlogic.gdx.graphics.Texture(pixmap));
-        pixmap.dispose();
-
-        // Label style
-        Label.LabelStyle labelStyle = new Label.LabelStyle();
-        labelStyle.font = font;
-        labelStyle.fontColor = Color.WHITE;
-        skin.add("default", labelStyle);
-
-        // TextField style
-        TextField.TextFieldStyle textFieldStyle = new TextField.TextFieldStyle();
-        textFieldStyle.font = font;
-        textFieldStyle.fontColor = Color.WHITE;
-        textFieldStyle.cursor = skin.newDrawable("white", Color.WHITE);
-        textFieldStyle.selection = skin.newDrawable("white", new Color(0.3f, 0.3f, 0.8f, 1f));
-        textFieldStyle.background = skin.newDrawable("white", new Color(0.2f, 0.2f, 0.2f, 0.8f));
-        skin.add("default", textFieldStyle);
-
-        // TextButton style
-        TextButton.TextButtonStyle buttonStyle = new TextButton.TextButtonStyle();
-        buttonStyle.font = font;
-        buttonStyle.fontColor = Color.WHITE;
-        buttonStyle.up = skin.newDrawable("white", new Color(0.3f, 0.3f, 0.3f, 0.9f));
-        buttonStyle.down = skin.newDrawable("white", new Color(0.5f, 0.5f, 0.5f, 0.9f));
-        buttonStyle.over = skin.newDrawable("white", new Color(0.4f, 0.4f, 0.4f, 0.9f));
-        skin.add("default", buttonStyle);
-    }
-
-    /**
-     * Create the UI components.
-     */
     private void createUI() {
         table = new Table();
         table.setFillParent(true);
@@ -110,15 +63,13 @@ public class ConnectHost {
 
         // Ship configuration input
         Label shipConfigLabel = new Label("Ship Config:", skin);
-        shipConfigField = new TextField("5,4,3,3,2", skin);
-        shipConfigField.setMessageText("Comma-separated ship lengths");
+        for (TextField field : this.shipConfigField) {
+            field = new TextField("", skin);
+        }
         table.add(shipConfigLabel).padRight(10);
-        table.add(shipConfigField).width(200).padBottom(10).row();
-
-        // Help text
-        Label helpLabel = new Label("Example: 5,4,3,3,2 = 1 carrier, 1 battleship, 2 cruisers, 1 destroyer", skin);
-        helpLabel.setFontScale(0.7f);
-        table.add(helpLabel).colspan(2).padBottom(20).row();
+        for (TextField field : this.shipConfigField) {
+            table.add(field).width(200).padBottom(10).row();
+        }
 
         // Host button
         hostButton = new TextButton("Start Hosting", skin);
@@ -145,27 +96,10 @@ public class ConnectHost {
         try {
             // Parse port
             int port = Integer.parseInt(portField.getText().trim());
-            if (port < 1024 || port > 65535) {
-                setStatus("Port must be between 1024 and 65535", true);
-                return;
-            }
-
-            // Parse board size
             int boardSize = Integer.parseInt(boardSizeField.getText().trim());
-            if (boardSize < 5 || boardSize > 20) {
-                setStatus("Board size must be between 5 and 20", true);
-                return;
-            }
 
-            // Parse ship configuration
-            String[] shipConfigStr = shipConfigField.getText().trim().split(",");
-            int[] shipConfig = new int[shipConfigStr.length];
-            for (int i = 0; i < shipConfigStr.length; i++) {
-                shipConfig[i] = Integer.parseInt(shipConfigStr[i].trim());
-                if (shipConfig[i] < 1 || shipConfig[i] > boardSize) {
-                    setStatus("Ship length must be between 1 and " + boardSize, true);
-                    return;
-                }
+            for (TextField field : shipConfigField) {
+
             }
 
             // Start hosting

@@ -13,9 +13,15 @@ import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.freetype.FreeType;
 import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
+import com.badlogic.gdx.scenes.scene2d.Stage;
+import com.badlogic.gdx.scenes.scene2d.ui.Skin;
+import com.badlogic.gdx.scenes.scene2d.ui.Table;
 
 public class ConnectScreen implements Screen {
     private final BattleshipGame game;
+
+    private final Stage stage;
+
     private Texture mainMenuTexture;
     private SpriteBatch batch;
     private FreeTypeFontGenerator fontGen;
@@ -24,33 +30,22 @@ public class ConnectScreen implements Screen {
 
     public ConnectScreen(BattleshipGame game) {
         this.game = game;
-        batch = null;
-        mainMenuTexture = null;
-        fontGen = null;
-        connectHost = null;
+        this.stage = null;
+        this.batch = null;
+        this.mainMenuTexture = null;
+        this.fontGen = null;
+        this.connectHost = null;
     }
 
     @Override
     public void show() {
         if (mainMenuTexture == null) {
-            mainMenuTexture = new Texture("sprites/main_menu_background.jpg");
+            mainMenuTexture = new Texture(Gdx.files.internal("sprites/shared_background.png"));
         }
         if (batch == null) batch = new SpriteBatch();
         if (fontGen == null) fontGen = new FreeTypeFontGenerator(Gdx.files.internal("fonts/BBHBartle-Regular.ttf"));
         if (connectHost == null) {
-            connectHost = new ConnectHost(game.getNetworkController());
-            connectHost.setCallback(new ConnectHost.HostCallback() {
-                @Override
-                public void onHostSuccess(int port, int boardSize, int[] shipConfig) {
-                    Gdx.app.log("ConnectScreen", "Successfully connected to host");
-                }
 
-                @Override
-                public void onHostError(String error) {
-                    Gdx.app.error("ConnectScreen", "Failed to connect to host: " + error);
-                }
-            });
-            Gdx.input.setInputProcessor(connectHost.getStage());
         }
     }
 
