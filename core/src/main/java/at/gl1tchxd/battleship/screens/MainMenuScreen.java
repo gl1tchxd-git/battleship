@@ -1,6 +1,9 @@
 // Java
 package at.gl1tchxd.battleship.screens;
 
+import at.gl1tchxd.battleship.BattleshipGame;
+import at.gl1tchxd.battleship.logic.GameController;
+import at.gl1tchxd.battleship.network.NetworkController;
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
@@ -14,13 +17,13 @@ import com.badlogic.gdx.graphics.g2d.freetype.FreeType;
 import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
 
 public class MainMenuScreen implements Screen {
-    private final Game game;
+    private final BattleshipGame game;
     private Texture mainMenuTexture;
     private Texture mainMenuLogo;
     private SpriteBatch batch;
     private FreeTypeFontGenerator fontGen;
 
-    public MainMenuScreen(Game game) {
+    public MainMenuScreen(BattleshipGame game) {
         this.game = game;
         batch = null;
         mainMenuTexture = null;

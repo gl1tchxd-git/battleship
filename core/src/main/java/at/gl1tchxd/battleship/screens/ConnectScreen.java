@@ -1,5 +1,8 @@
 package at.gl1tchxd.battleship.screens;
 
+import at.gl1tchxd.battleship.BattleshipGame;
+import at.gl1tchxd.battleship.network.NetworkController;
+import at.gl1tchxd.battleship.ui.ConnectHost;
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
@@ -12,16 +15,19 @@ import com.badlogic.gdx.graphics.g2d.freetype.FreeType;
 import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
 
 public class ConnectScreen implements Screen {
-    private final Game game;
+    private final BattleshipGame game;
     private Texture mainMenuTexture;
     private SpriteBatch batch;
     private FreeTypeFontGenerator fontGen;
 
-    public ConnectScreen(Game game) {
+    private ConnectHost connectHost;
+
+    public ConnectScreen(BattleshipGame game) {
         this.game = game;
         batch = null;
         mainMenuTexture = null;
         fontGen = null;
+        connectHost = null;
     }
 
     @Override
@@ -31,6 +37,21 @@ public class ConnectScreen implements Screen {
         }
         if (batch == null) batch = new SpriteBatch();
         if (fontGen == null) fontGen = new FreeTypeFontGenerator(Gdx.files.internal("fonts/BBHBartle-Regular.ttf"));
+        if (connectHost == null) {
+            connectHost = new ConnectHost(game.getNetworkController());
+            connectHost.setCallback(new ConnectHost.HostCallback() {
+                @Override
+                public void onHostSuccess(int port, int boardSize, int[] shipConfig) {
+                    Gdx.app.log("ConnectScreen", "Successfully connected to host");
+                }
+
+                @Override
+                public void onHostError(String error) {
+                    Gdx.app.error("ConnectScreen", "Failed to connect to host: " + error);
+                }
+            });
+            Gdx.input.setInputProcessor(connectHost.getStage());
+        }
     }
 
     @Override
@@ -38,20 +59,15 @@ public class ConnectScreen implements Screen {
         Gdx.gl.glClearColor(0f, 0f, 0f, 1f);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
         input(delta);
-        draw();
+        draw(delta);
     }
 
-    public void draw() {
-        if (batch == null || fontGen == null || mainMenuTexture == null) return;
+    public void draw(float delta) {
+        if (batch == null || fontGen == null || mainMenuTexture == null || connectHost == null) return;
         batch.begin();
         batch.draw(mainMenuTexture, 0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-        FreeTypeFontGenerator.FreeTypeFontParameter param = new FreeTypeFontGenerator.FreeTypeFontParameter();
-        param.size = 32;
-        param.color = com.badlogic.gdx.graphics.Color.BLACK;
-        fontGen.generateFont(param).draw(batch, "Connecting...", (int) (Gdx.graphics.getWidth() * 0.05), (int) (Gdx.graphics.getHeight() * 0.9));
-        param.size = 16;
-        fontGen.generateFont(param).draw(batch, "Press space to start", (int) (Gdx.graphics.getWidth() * 0.05), (int) (Gdx.graphics.getHeight() * 0.9) - 30);
         batch.end();
+        connectHost.render(delta);
     }
 
     public void input(float delta) {
@@ -63,7 +79,9 @@ public class ConnectScreen implements Screen {
 
     @Override
     public void resize(int width, int height) {
-        //
+        if (connectHost != null) {
+            connectHost.getStage().getViewport().update(width, height, true);
+        }
     }
 
     @Override
@@ -86,5 +104,6 @@ public class ConnectScreen implements Screen {
         if (batch != null) batch.dispose();
         if (mainMenuTexture != null) mainMenuTexture.dispose();
         if (fontGen != null) fontGen.dispose();
+        if (connectHost != null) connectHost.dispose();
     }
 }

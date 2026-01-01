@@ -1,5 +1,7 @@
 package at.gl1tchxd.battleship;
 
+import at.gl1tchxd.battleship.logic.GameController;
+import at.gl1tchxd.battleship.network.NetworkController;
 import at.gl1tchxd.battleship.screens.MainMenuScreen;
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
@@ -13,11 +15,16 @@ public class BattleshipGame extends Game {
     private SpriteBatch batch;
     private FitViewport viewport;
 
+    private GameController gameController;
+    private NetworkController networkController;
+
     @Override
     public void create() {
         this.batch = new SpriteBatch(); // Add this line
         this.viewport = new FitViewport(8, 5);
         this.setScreen(new MainMenuScreen(this));
+        this.gameController = new GameController();
+        this.networkController = new NetworkController(gameController);
     }
 
     @Override
@@ -42,5 +49,13 @@ public class BattleshipGame extends Game {
         if (batch != null) {
             batch.dispose();
         }
+    }
+
+    public GameController getGameController() {
+        return gameController;
+    }
+
+    public NetworkController getNetworkController() {
+        return networkController;
     }
 }
