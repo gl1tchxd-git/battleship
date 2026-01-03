@@ -4,6 +4,7 @@ public enum GamePhase {
     WAITING_FOR_OPPONENT,
     PLACEMENT,
     BATTLE,
-    GAME_OVER
+    GAME_LOST,
+    GAME_WON
 }
 

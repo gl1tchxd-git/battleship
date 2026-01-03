@@ -14,7 +14,6 @@ public class GameController {
     private boolean opponentReady = false;
     private GamePhase currentPhase = GamePhase.WAITING_FOR_OPPONENT;
 
-    // Player ID management
     public void setPlayerId(String playerId) {
         this.playerId = playerId;
     }
@@ -31,7 +30,6 @@ public class GameController {
         return opponentId;
     }
 
-    // Turn management
     public boolean isMyTurn() {
         return playerId != null && playerId.equals(currentTurnPlayerId);
     }
@@ -45,7 +43,6 @@ public class GameController {
         currentTurnPlayerId = currentTurnPlayerId.equals(playerId) ? opponentId : playerId;
     }
 
-    // Board access
     public Board getMyBoard() {
         return myBoard;
     }
@@ -54,42 +51,11 @@ public class GameController {
         return trackingBoard;
     }
 
-    /**
-     * Record the result of attacking the opponent (updates tracking board).
-     * Call this when you receive the attack result from the opponent.
-     */
     public void recordAttackResult(int row, int col, boolean hit) {
         if (trackingBoard == null) throw new IllegalStateException("Tracking board not initialized");
         trackingBoard.markCell(row, col, hit);
     }
 
-    /**
-     * Receive an attack from the opponent on your board.
-     * Returns the result to send back to the opponent.
-     */
-    public AttackResult receiveAttack(int row, int col) {
-        if (myBoard == null) throw new IllegalStateException("My board not initialized");
-
-        boolean hit = myBoard.attack(row, col);
-        Ship hitShip = null;
-        boolean shipSunk = false;
-
-        if (hit) {
-            hitShip = myBoard.getShipAt(row, col);
-            if (hitShip != null && hitShip.isSunk()) {
-                shipSunk = true;
-            }
-        }
-
-        boolean gameWon = isGameOver();
-        if (gameWon) {
-            currentPhase = GamePhase.GAME_OVER;
-        }
-
-        return new AttackResult(hit, shipSunk, gameWon, hitShip);
-    }
-
-    // Placement phase
     public boolean isPlacementComplete() {
         return placementComplete;
     }
@@ -115,7 +81,6 @@ public class GameController {
         }
     }
 
-    // Game phase tracking
     public GamePhase getGamePhase() {
         return currentPhase;
     }
@@ -124,10 +89,6 @@ public class GameController {
         this.currentPhase = phase;
     }
 
-    /**
-     * Export board state for network transmission (hides unhit ships).
-     * Returns a 2D array where: 0=EMPTY, 1=MISS, 2=HIT
-     */
     public int[][] exportBoardState() {
         if (myBoard == null) return null;
 
@@ -149,15 +110,11 @@ public class GameController {
         return state;
     }
 
-    /**
-     * Export fleet information for game state sync.
-     */
     public Map<Integer, Ship[]> exportFleet() {
         if (game == null) return null;
         return game.getFleet();
     }
 
-    // Reset
     public void resetGame() {
         if (myBoard != null) myBoard.clear();
         if (trackingBoard != null) trackingBoard.clear();
@@ -168,15 +125,12 @@ public class GameController {
         game = null;
     }
 
-    public boolean initializeGame(int boardSize, int[] shipConfig) {
-        if (boardSize <= 0) throw new IllegalArgumentException("boardSize must be > 0");
-        if (shipConfig == null) throw new IllegalArgumentException("shipConfig must not be null");
+    public void initializeGame(int boardSize, int[] shipConfig) {
         try {
             game = new Game(boardSize, shipConfig);
             myBoard = game.getBoard();
-            trackingBoard = new Board(boardSize, true); // Create tracking board
+            trackingBoard = new Board(boardSize, true);
             currentPhase = GamePhase.PLACEMENT;
-            return true;
         } catch (IllegalArgumentException e) {
             game = null;
             throw e;
@@ -188,18 +142,28 @@ public class GameController {
         return game.placeShip(index, row, col, horizontal);
     }
 
-
-    /**
-     * Attack and return detailed result information.
-     * For P2P: This is called when YOU are attacked (opponent attacks your board).
-     */
     public AttackResult attackWithResult(int row, int col) {
-        return receiveAttack(row, col);
+        if (myBoard == null) throw new IllegalStateException("My board not initialized");
+
+        boolean hit = myBoard.attack(row, col);
+        Ship hitShip = null;
+        boolean shipSunk = false;
+
+        if (hit) {
+            hitShip = myBoard.getShipAt(row, col);
+            if (hitShip != null && hitShip.isSunk()) {
+                shipSunk = true;
+            }
+        }
+
+        boolean gameWon = isGameOver();
+        if (gameWon) {
+            currentPhase = GamePhase.GAME_LOST;
+        }
+
+        return new AttackResult(hit, shipSunk, gameWon);
     }
 
-    /**
-     * Check if all ships on MY board are sunk (I lost).
-     */
     public boolean isGameOver() {
         if (game == null) return false;
 
@@ -214,9 +178,6 @@ public class GameController {
         return true;
     }
 
-    /**
-     * Get count of MY ships still afloat.
-     */
     public int getRemainingShips() {
         if (game == null) return 0;
 
@@ -237,29 +198,10 @@ public class GameController {
         return game;
     }
 
-    /**
-     * Export sunk / total ship counts in a privacy-preserving way.
-     * Returns an int array where each row is [sunkCount, totalCount] for a ship-size class.
-     */
     public int[][] exportSunk() {
         Map<Integer, Ship[]> fleet = null;
-        int classes = 5; // fallback
-        if (game == null) {
-            // return zeros for standard 5 classes
-            int[][] result = new int[classes][2];
-            for (int i = 0; i < classes; i++) {
-                result[i][0] = 0;
-                result[i][1] = 0;
-            }
-            return result;
-        } else {
-            fleet = game.getFleet();
-            int[] cfg = game.getShipConfig();
-            if (cfg != null) classes = cfg.length;
-        }
-
-        int[][] result = new int[classes][2];
-        for (int i = 0; i < classes; i++) {
+        int[][] result = new int[5][2];
+        for (int i = 0; i < 5; i++) {
             int sunkCount = 0;
             int totalCount = 0;
             Ship[] ships = fleet.get(i);
@@ -283,25 +225,19 @@ public class GameController {
         return game.getBoard().toString(true);
     }
 
-    /**
-     * Result of an attack action with all relevant state information.
-     */
     public static class AttackResult {
         private final boolean hit;
         private final boolean shipSunk;
         private final boolean gameWon;
-        private final Ship hitShip;
 
-        public AttackResult(boolean hit, boolean shipSunk, boolean gameWon, Ship hitShip) {
+        public AttackResult(boolean hit, boolean shipSunk, boolean gameWon) {
             this.hit = hit;
             this.shipSunk = shipSunk;
             this.gameWon = gameWon;
-            this.hitShip = hitShip;
         }
 
         public boolean isHit() { return hit; }
         public boolean isShipSunk() { return shipSunk; }
         public boolean isGameWon() { return gameWon; }
-        public Ship getHitShip() { return hitShip; }
     }
 }

@@ -6,5 +6,4 @@ public enum MessageType {
     PLAYER_READY,
     ATTACK,
     ATTACK_RESULT,
-    GAME_OVER,
 }

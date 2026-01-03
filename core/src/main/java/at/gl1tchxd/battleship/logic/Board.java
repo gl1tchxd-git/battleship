@@ -7,21 +7,18 @@ import java.util.Arrays;
 public class Board {
     private final Ship[][] board;
     private Cell[][] grid;
-    private final boolean trackingMode; // true = tracking board (no ships), false = normal board
+    private final boolean trackingMode;
+    private int[][] trackingSunkShips;
     private enum Cell { EMPTY, SHIP, HIT, MISS }
 
     public Board(int boardSize) {
         this(boardSize, false);
     }
 
-    /**
-     * Create a board.
-     * boardSize size of the board
-     * trackingMode if true, this is a tracking-only board (no ship placement, only hit/miss tracking)
-     */
     public Board(int boardSize, boolean trackingMode) {
         if (boardSize <= 0) throw new IllegalArgumentException("boardSize must be > 0");
         this.trackingMode = trackingMode;
+        this.trackingSunkShips = new int[5][2];
         board = trackingMode ? null : new Ship[boardSize][boardSize];
         grid = new Cell[boardSize][boardSize];
         for (Cell[] row : grid) Arrays.fill(row, Cell.EMPTY);
@@ -29,6 +26,16 @@ public class Board {
 
     public boolean isTrackingMode() {
         return trackingMode;
+    }
+
+    public void setTrackingSunkShips(int[][] trackingSunkShips) {
+        if (!trackingMode) throw new IllegalStateException("Cannot set trackingSunkShips in non-tracking mode");
+        this.trackingSunkShips = trackingSunkShips;
+    }
+
+    public int[][] getTrackingSunkShips() {
+        if (!trackingMode) throw new IllegalStateException("Cannot get trackingSunkShips in non-tracking mode");
+        return trackingSunkShips;
     }
 
     public int getSize() {
@@ -88,7 +95,6 @@ public class Board {
             for (int c = 0; c < board[r].length; c++) {
                 if (board[r][c] == ship) {
                     board[r][c] = null;
-                    // Only clear visual state if that cell wasn't hit
                     if (grid[r][c] != Cell.HIT) {
                         grid[r][c] = Cell.EMPTY;
                     }
@@ -103,41 +109,33 @@ public class Board {
     }
 
     public Ship getShipAt(int row, int col) {
-        if (trackingMode) return null; // tracking boards don't have ships
+        if (trackingMode) return null;
         if (row < 0 || col < 0) throw new IndexOutOfBoundsException("row and col must be >= 0");
         if (!inBounds(row, col)) throw new IndexOutOfBoundsException("row/col out of bounds");
         return board[row][col];
     }
 
-    // returns the cell state (EMPTY, SHIP, HIT, MISS)
     public String getCellInfo(int row, int col) {
         if (row < 0 || col < 0) throw new IndexOutOfBoundsException("row and col must be >= 0");
         if (!inBounds(row, col)) throw new IndexOutOfBoundsException("row/col out of bounds");
         return grid[row][col].name();
     }
 
-    /**
-     * Get cell info suitable for network transmission (hides unhit ships).
-     * Returns EMPTY for unhit ship cells, HIT/MISS as normal.
-     */
     public String getCellInfoForOpponent(int row, int col) {
         if (row < 0 || col < 0) throw new IndexOutOfBoundsException("row and col must be >= 0");
         if (!inBounds(row, col)) throw new IndexOutOfBoundsException("row/col out of bounds");
 
         Cell cell = grid[row][col];
-        // Hide unhit ships from opponent
         if (cell == Cell.SHIP) return Cell.EMPTY.name();
         return cell.name();
     }
 
-    // Attack a cell; returns true when a ship was hit, false when miss.
     public boolean attack(int row, int col) {
         if (trackingMode) throw new IllegalStateException("Cannot attack tracking board directly, use markCell()");
         if (row < 0 || col < 0) throw new IndexOutOfBoundsException("row and col must be >= 0");
         if (!inBounds(row, col)) throw new IndexOutOfBoundsException("row/col out of bounds");
 
         Cell current = grid[row][col];
-        // if already attacked, return whether it was a hit
         if (current == Cell.HIT) return true;
         if (current == Cell.MISS) return false;
 
@@ -154,7 +152,7 @@ public class Board {
 
 
     public Ship[][] getGridCopy() {
-        if (trackingMode) return null; // tracking boards don't have ships
+        if (trackingMode) return null;
         Ship[][] copy = new Ship[board.length][board.length];
         for (int r = 0; r < board.length; r++) {
             System.arraycopy(board[r], 0, copy[r], 0, board[r].length);
@@ -164,7 +162,6 @@ public class Board {
 
     public void clear() {
         if (trackingMode) {
-            // For tracking boards, just clear the grid
             for (Cell[] row : grid) Arrays.fill(row, Cell.EMPTY);
             return;
         }
@@ -179,7 +176,6 @@ public class Board {
         for (Ship s : seen) {
             s.place(-1, -1, false);
         }
-        // reset grid cells to EMPTY as well
         for (Cell[] row : grid) Arrays.fill(row, Cell.EMPTY);
     }
 
@@ -188,20 +184,11 @@ public class Board {
         return toString(true);
     }
 
-    /**
-     * Render the board as a string. If useAnsi==true, include ANSI color/background codes
-     * (helpful in terminals that support them). Default to no-ANSI to avoid raw escape codes
-     * in loggers or environments that don't support them.
-     */
     public String toString(boolean useAnsi) {
         StringBuilder sb = new StringBuilder();
-        // Use grid length because in tracking mode `board` is null
         int n = grid.length;
-
-        // Determine width for row index column
         int idxWidth = Math.max(2, String.valueOf(n - 1).length());
 
-        // ANSI color codes (foreground only)
         final String RESET = "\u001B[0m";
         final String FG_SHIP = "\u001B[95m"; // bright magenta for ships
         final String FG_HIT = "\u001B[91m";  // bright red for hits
@@ -209,7 +196,6 @@ public class Board {
         final String FG_EMPTY = "\u001B[90m"; // dark gray for empty cells
         final String FG_INDEX = "\u001B[37m"; // white for indices
 
-        // Header: column indices
         if (useAnsi) {
             for (int i = 0; i < idxWidth + 1; i++) sb.append(' ');
             sb.append(FG_INDEX);
@@ -226,7 +212,6 @@ public class Board {
         }
 
         for (int r = 0; r < n; r++) {
-            // Row index
             if (useAnsi) sb.append(FG_INDEX).append(String.format("%" + idxWidth + "d ", r)).append(RESET);
             else sb.append(String.format("%" + idxWidth + "d ", r));
 
@@ -241,7 +226,7 @@ public class Board {
                 }
 
                 if (!useAnsi) {
-                    sb.append(cellStr).append(' '); // spacing to match header
+                    sb.append(cellStr).append(' ');
                     continue;
                 }
 

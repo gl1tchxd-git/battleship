@@ -35,9 +35,9 @@ public class Game {
             totalCells += count * lengths[i];
         }
 
-        int maxAllowed = (int) Math.floor(boardSize * boardSize * 0.8);
+        int maxAllowed = (int) Math.floor(boardSize * boardSize * 0.7);
         if (totalCells > maxAllowed) {
-            throw new IllegalArgumentException("Total ship cells (" + totalCells + ") exceed 80% of board area (" + maxAllowed + ")");
+            throw new IllegalArgumentException("Total ship cells (" + totalCells + ") exceed 70% of board area (" + maxAllowed + ")");
         }
 
         List<Ship> list = new ArrayList<>();
