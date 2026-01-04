@@ -82,7 +82,14 @@ public class ConnectHost {
         statusLabel.setColor(Color.YELLOW);
         table.add(statusLabel).colspan(2).row();
 
-        stage.addActor(table);
+        // Note: Table will be added to stage by ConnectScreen
+    }
+
+    /**
+     * Get the table for layout purposes.
+     */
+    public Table getTable() {
+        return table;
     }
 
     /**

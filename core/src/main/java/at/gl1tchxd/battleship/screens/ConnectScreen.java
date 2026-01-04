@@ -12,6 +12,7 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
+import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 
 public class ConnectScreen implements Screen {
@@ -123,6 +124,19 @@ public class ConnectScreen implements Screen {
                 }
             });
         }
+        
+        // Create a parent table to layout both widgets side by side
+        Table parentTable = new Table();
+        parentTable.setFillParent(true);
+        parentTable.center();
+        
+        // Add host widget on the left
+        parentTable.add(connectHost.getTable()).padRight(50);
+        
+        // Add client widget on the right
+        parentTable.add(connectClient.getTable()).padLeft(50);
+        
+        stage.addActor(parentTable);
         
         // Set input processor to handle the stage
         Gdx.input.setInputProcessor(stage);
