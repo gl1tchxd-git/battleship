@@ -1,39 +1,48 @@
 package at.gl1tchxd.battleship.ui;
 
 import at.gl1tchxd.battleship.network.NetworkController;
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.*;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
+import com.badlogic.gdx.utils.Align;
+import com.badlogic.gdx.utils.viewport.ScreenViewport;
 
-/**
- * UI component for hosting a game.
- * Provides input fields for port, board size, and ship configuration.
- */
+import java.util.Arrays;
+
 public class ConnectHost {
     private final Stage stage;
     private Table table;
     private Skin skin;
 
-    private final int x;
-    private final int y;
-
     private TextField portField;
     private TextField boardSizeField;
     private TextField shipConfigField;
     private TextButton hostButton;
+    private TextField[] shipConfigField;
+    private ImageTextButton hostButton;
     private Label statusLabel;
 
     private final NetworkController networkController;
     private HostCallback callback;
 
-    public ConnectHost(NetworkController networkController, Skin skin, Stage stage, int x, int y) {
+    private HostCallback callback;
+
+    /** Width of the entire widget. Labels and inputs each take half this width. */
+    private float widgetWidth = 250f;
+
+    public interface HostCallback {
+        void onHostSuccess(int port, int boardSize, int[] shipConfig);
+        void onHostError(String errorMessage);
+        void onClientConnected();
+    }
+
+    public ConnectHost(NetworkController networkController, Skin skin, Stage stage) {
         this.networkController = networkController;
         this.stage = stage;
         this.skin = skin;
-        this.x = x;
-        this.y = y;
         createUI();
     }
 
@@ -42,12 +51,20 @@ public class ConnectHost {
         table.setFillParent(false);
         table.left();
 
-        // Title
-        Label titleLabel = new Label("Host Game", skin);
-        table.add(titleLabel).colspan(2).padBottom(20).row();
+        createUIContent();
 
-        // Port input
+        stage.addActor(table);
+    }
+
+    private void createUIContent() {
+        float halfWidth = widgetWidth / 2f;
+
+        // Top section for inputs
+        Table topSection = new Table();
+        topSection.top().left();
+
         Label portLabel = new Label("Port:", skin);
+        portLabel.setAlignment(com.badlogic.gdx.utils.Align.right);
         portField = new TextField("8080", skin);
         portField.setMessageText("Port number (1024-65535)");
         table.add(portLabel).padRight(10);
@@ -66,21 +83,45 @@ public class ConnectHost {
         shipConfigField.setMessageText("Ship sizes (e.g., 5,4,3,3,2)");
         table.add(shipConfigLabel).padRight(10);
         table.add(shipConfigField).width(200).padBottom(10).row();
+        topSection.add(portLabel).width(halfWidth).padRight(5).padBottom(10);
+        topSection.add(portField).width(halfWidth).left().padBottom(10).row();
 
-        // Host button
-        hostButton = new TextButton("Start Hosting", skin);
+        // Initialize ship config fields (5 ship types: 5, 4, 3, 3, 2 lengths)
+        Label shipConfigLabel = new Label("Ship Lengths:", skin);
+        shipConfigLabel.setAlignment(com.badlogic.gdx.utils.Align.center);
+        topSection.add(shipConfigLabel).colspan(2).center().padBottom(5).row();
+
+        String[] defaultShips = {"1", "1", "1", "1", "1"};
+        String[] shipLabels = {"Carrier:", "Battleship:", "Cruiser:", "Submarine:", "Destroyer:"};
+        shipConfigField = new TextField[defaultShips.length];
+
+        for (int i = 0; i < defaultShips.length; i++) {
+            Label label = new Label(shipLabels[i], skin);
+            label.setAlignment(com.badlogic.gdx.utils.Align.right);
+            shipConfigField[i] = new TextField(defaultShips[i], skin);
+            shipConfigField[i].setMessageText("Ship length");
+            topSection.add(label).width(halfWidth).padRight(5).padBottom(5);
+            topSection.add(shipConfigField[i]).width(halfWidth).left().padBottom(5).row();
+        }
+
+        // Bottom section for button and status
+        Table bottomSection = new Table();
+        bottomSection.top();
+
+        hostButton = new ImageTextButton("Start Hosting", skin);
+        hostButton.getLabel().setFontScale(1.5f);
         hostButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 handleHostClick();
             }
         });
-        table.add(hostButton).colspan(2).width(200).height(40).padBottom(10).row();
+        bottomSection.add(hostButton).height(hostButton.getHeight() * 0.8f).width(hostButton.getWidth() * 0.8f).padBottom(10).row();
 
-        // Status label
         statusLabel = new Label("", skin);
         statusLabel.setColor(Color.YELLOW);
-        table.add(statusLabel).colspan(2).row();
+        statusLabel.setWrap(true);
+        bottomSection.add(statusLabel).width(widgetWidth).height(60).center().row();
 
         // Note: Table will be added to stage by ConnectScreen
     }
@@ -90,11 +131,11 @@ public class ConnectHost {
      */
     public Table getTable() {
         return table;
+        // Add sections to main table - topSection expands to fill available space, bottomSection at bottom
+        table.add(topSection).expandX().expandY().top().left().row();
+        table.add(bottomSection).expandX().height(150).bottom().row();
     }
 
-    /**
-     * Handle the host button click.
-     */
     private void handleHostClick() {
         try {
             // Parse port
@@ -106,17 +147,35 @@ public class ConnectHost {
             if (callback != null) {
                 callback.onHostStart();
             }
+            int port = getPort();
+//            int boardSize = getBoardSize();
+            int[] shipConfig = getShipConfig();
 
-            // Start hosting
             setStatus("Starting server on port " + port + "...", false);
             hostButton.setDisabled(true);
 
             try {
                 networkController.hostGame(port, boardSize, shipConfig);
+                networkController.hostGame(port, 10, shipConfig);
                 setStatus("Hosting on port " + port + ". Waiting for player...", false);
 
+                networkController.setConnectionCallback(new NetworkController.ConnectionCallback() {
+                    @Override
+                    public void onClientConnected() {
+                        Gdx.app.postRunnable(new Runnable() {
+                            @Override
+                            public void run() {
+                                setStatus("Client connected! Starting game...", false);
+                                if (callback != null) {
+                                    callback.onClientConnected();
+                                }
+                            }
+                        });
+                    }
+                });
+
                 if (callback != null) {
-                    callback.onHostSuccess(port, boardSize, shipConfig);
+                    callback.onHostSuccess(port, 10, shipConfig);
                 }
             } catch (Exception e) {
                 setStatus("Failed to host: " + e.getMessage(), true);
@@ -132,116 +191,75 @@ public class ConnectHost {
         }
     }
 
-    /**
-     * Set the status message.
-     */
     private void setStatus(String message, boolean isError) {
         statusLabel.setText(message);
         statusLabel.setColor(isError ? Color.RED : Color.YELLOW);
     }
 
-    /**
-     * Set the callback for host events.
-     */
     public void setCallback(HostCallback callback) {
         this.callback = callback;
     }
 
-    /**
-     * Get the stage for input processing.
-     */
-    public Stage getStage() {
-        return stage;
-    }
-
-    /**
-     * Render the UI.
-     */
-    public void render(float delta) {
-        stage.act(delta);
-        stage.draw();
-    }
-
-    /**
-     * Resize the UI.
-     */
-    public void resize(int width, int height) {
-        stage.getViewport().update(width, height, true);
-    }
-
-    /**
-     * Get the port value.
-     */
     public int getPort() {
-        try {
-            return Integer.parseInt(portField.getText().trim());
-        } catch (NumberFormatException e) {
-            return 8080;
-        }
+        return Integer.parseInt(portField.getText().trim());
     }
 
-    /**
-     * Get the board size value.
-     */
     public int getBoardSize() {
-        try {
-            return Integer.parseInt(boardSizeField.getText().trim());
-        } catch (NumberFormatException e) {
-            return 10;
-        }
+        return Integer.parseInt(boardSizeField.getText().trim());
     }
 
-    /**
-     * Get the ship configuration.
-     */
     public int[] getShipConfig() {
-        try {
-            String[] shipConfigStr = shipConfigField.getText().trim().split(",");
-            int[] shipConfig = new int[shipConfigStr.length];
-            for (int i = 0; i < shipConfigStr.length; i++) {
-                shipConfig[i] = Integer.parseInt(shipConfigStr[i].trim());
-            }
-            return shipConfig;
-        } catch (Exception e) {
-            return new int[]{5, 4, 3, 3, 2}; // Default configuration
+        int[] shipConfig = new int[shipConfigField.length];
+        for (int i = 0; i < shipConfigField.length; i++) {
+            shipConfig[i] = Integer.parseInt(shipConfigField[i].getText().trim());
         }
+        return shipConfig;
     }
 
-    /**
-     * Set the position of the UI panel.
-     */
+    public Table getTable() {
+        return table;
+    }
+
     public void setPosition(float x, float y) {
         table.setPosition(x, y);
     }
 
-    /**
-     * Set the size of the UI panel.
-     */
     public void setSize(float width, float height) {
         table.setSize(width, height);
     }
 
-    /**
-     * Enable or disable the host button.
-     */
+    /** Set the widget width. Labels and inputs each take half this width. */
+    public void setWidgetWidth(float width) {
+        this.widgetWidth = width;
+        rebuildUI();
+    }
+
+    /** Get the current widget width. */
+    public float getWidgetWidth() {
+        return widgetWidth;
+    }
+
+    /** Rebuild the UI with the current widgetWidth. */
+    private void rebuildUI() {
+        table.clear();
+        createUIContent();
+    }
+
     public void setHostEnabled(boolean enabled) {
         hostButton.setDisabled(!enabled);
     }
 
-    /**
-     * Reset the UI to default values.
-     */
     public void reset() {
         portField.setText("8080");
         boardSizeField.setText("10");
-        shipConfigField.setText("5,4,3,3,2");
+        String[] defaultShips = {"1", "1", "1", "1", "1"};
+        for (int i = 0; i < shipConfigField.length; i++) {
+            shipConfigField[i].setText(defaultShips[i]);
+        }
         statusLabel.setText("");
         hostButton.setDisabled(false);
     }
 
-    /**
-     * Dispose of resources.
-     */
     public void dispose() {
         // Note: stage and skin are managed by the parent screen
     }
@@ -254,6 +272,6 @@ public class ConnectHost {
         void onHostSuccess(int port, int boardSize, int[] shipConfig);
         void onHostError(String errorMessage);
         void onClientConnected();
+        // Stage and skin are owned by the game/screen, so don't dispose them here
     }
 }
-

@@ -23,15 +23,21 @@ public class ServerSocket implements Socket {
     public ServerSocket(int port, MessageHandler messageHandler) throws IOException {
         this.messageHandler = messageHandler;
         this.server = new Server();
-        this.server.start();
-        this.server.bind(port);
 
         kryo = this.server.getKryo();
         kryo.register(Message.class);
         kryo.register(MessageType.class);
-        kryo.register(HashMap.class);
+        kryo.register(java.util.HashMap.class);
+        kryo.register(String.class);
+        kryo.register(Integer.class);
+        kryo.register(Boolean.class);
+        kryo.register(int[].class);
+        kryo.register(int[][].class);
 
         setupListener();
+
+        this.server.start();
+        this.server.bind(port);
     }
 
     private void setupListener() {

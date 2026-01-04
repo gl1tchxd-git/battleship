@@ -23,15 +23,22 @@ public class ClientSocket implements Socket{
     public ClientSocket(String host, int port, MessageHandler messageHandler) throws IOException {
         this.messageHandler = messageHandler;
         this.client = new Client();
-        this.client.start();
-        this.client.connect(5000, host, port);
 
+        // Register classes BEFORE connecting (must match server registration order)
         kryo = this.client.getKryo();
         kryo.register(Message.class);
         kryo.register(MessageType.class);
-        kryo.register(HashMap.class);
+        kryo.register(java.util.HashMap.class);
+        kryo.register(String.class);
+        kryo.register(Integer.class);
+        kryo.register(Boolean.class);
+        kryo.register(int[].class);
+        kryo.register(int[][].class);
 
         setupListener();
+
+        this.client.start();
+        this.client.connect(5000, host, port);
     }
 
     private void setupListener() {

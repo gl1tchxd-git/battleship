@@ -16,6 +16,11 @@ public class NetworkController {
     private ClientSocket clientSocket;
     private String playerId;
     private boolean handshakeComplete = false;
+    private ConnectionCallback connectionCallback;
+
+    public interface ConnectionCallback {
+        void onClientConnected();
+    }
 
     public NetworkController(GameController gameController) {
         this.gameController = gameController;
@@ -29,7 +34,14 @@ public class NetworkController {
 
         serverSocket = new ServerSocket(port, new ServerSocket.MessageHandler() {
             @Override
-            public void onClientConnected(Connection connection) {}
+            public void onClientConnected(Connection connection) {
+                // Send game config immediately when client connects
+                sendGameConfig();
+
+                if (connectionCallback != null) {
+                    connectionCallback.onClientConnected();
+                }
+            }
 
             @Override
             public void onMessageReceived(Connection connection, Message message) {
@@ -75,6 +87,9 @@ public class NetworkController {
             case PLAYER_READY:
                 handlePlayerReady(message);
                 break;
+            case BATTLE_START:
+                handleBattleStart(message);
+                break;
             case ATTACK:
                 handleAttack(message);
                 break;
@@ -92,7 +107,7 @@ public class NetworkController {
         if (isHost && !handshakeComplete) {
             sendHandshake();
             handshakeComplete = true;
-            sendGameConfig();
+            // Game config already sent on connection
         } else if (!isHost && !handshakeComplete) {
             handshakeComplete = true;
         }
@@ -112,36 +127,104 @@ public class NetworkController {
         data.put("shipConfig", gameController.getGame().getShipConfig());
         Message message = new Message(MessageType.GAME_CONFIG, data);
         sendMessage(message);
+        System.out.println("Sent game config: boardSize=" + data.get("boardSize") + ", shipConfig length=" + ((int[])data.get("shipConfig")).length);
     }
 
     private void handleGameConfig(Message message) {
         if (!isHost) {
+            System.out.println("Received game config message");
             int boardSize = (Integer) message.data.get("boardSize");
             int[] shipConfig = (int[]) message.data.get("shipConfig");
+            System.out.println("Initializing game with boardSize=" + boardSize + ", shipConfig length=" + shipConfig.length);
             gameController.initializeGame(boardSize, shipConfig);
+            System.out.println("Game initialized successfully");
         }
     }
 
     private void handlePlayerReady(Message message) {
         gameController.setOpponentReady(true);
+
+        // If host and both players are ready, send battle start message
+        if (isHost && gameController.isPlacementComplete() && gameController.isOpponentReady()) {
+            sendBattleStart();
+        }
+    }
+
+    private void sendBattleStart() {
+        // Host always goes first
+        String startingPlayerId = playerId;
+
+        // Set locally for host
+        gameController.setCurrentTurn(startingPlayerId);
+        gameController.setGamePhase(GamePhase.BATTLE);
+
+        // Send to client
+        Map<String, Object> data = new HashMap<>();
+        data.put("startingPlayerId", startingPlayerId);
+        Message message = new Message(MessageType.BATTLE_START, data);
+        sendMessage(message);
+
+        System.out.println("Battle started! Starting player: " + startingPlayerId);
+    }
+
+    private void handleBattleStart(Message message) {
+        String startingPlayerId = (String) message.data.get("startingPlayerId");
+        gameController.setCurrentTurn(startingPlayerId);
+        gameController.setGamePhase(GamePhase.BATTLE);
+
+        System.out.println("Battle started! Starting player: " + startingPlayerId +
+                          " (I am: " + playerId + ", my turn: " + gameController.isMyTurn() + ")");
     }
 
     private void handleAttack(Message message) {
-        GameController.AttackResult result = gameController.attackWithResult((int) message.data.get("row"), (int) message.data.get("col"));
+        int row = (int) message.data.get("row");
+        int col = (int) message.data.get("col");
+        System.out.println("Received attack at (" + row + ", " + col + ")");
+
+        GameController.AttackResult result = gameController.attackWithResult(row, col);
+        System.out.println("Attack result: hit=" + result.isHit() + ", sunk=" + result.isShipSunk() + ", gameWon=" + result.isGameWon());
+
         Map<String, Object> data = new HashMap<>();
         data.put("isHit", result.isHit());
         data.put("isShipSunk", result.isShipSunk());
         data.put("isGameWon", result.isGameWon());
         data.put("shipsSunk", gameController.exportSunk());
+        data.put("row", row);
+        data.put("col", col);
 
         Message response = new Message(MessageType.ATTACK_RESULT, data);
         sendMessage(response);
+        System.out.println("Sent attack result back");
+
+        // After being attacked, it's our turn only if they missed (and game not over)
+        if (!result.isGameWon() && !result.isHit()) {
+            gameController.setCurrentTurn(playerId);
+            System.out.println("They missed! It's now my turn");
+        } else if (result.isHit()) {
+            System.out.println("They hit! They keep their turn");
+        }
     }
 
     private void handleAttackResult(Message message) {
-        gameController.setGamePhase(GamePhase.GAME_WON);
-        gameController.recordAttackResult((int) message.data.get("row"), (int) message.data.get("col"), (boolean) message.data.get("isHit"));
+        boolean isGameWon = (boolean) message.data.get("isGameWon");
+        int row = (int) message.data.get("row");
+        int col = (int) message.data.get("col");
+        boolean isHit = (boolean) message.data.get("isHit");
+
+        System.out.println("Received attack result for (" + row + ", " + col + "): hit=" + isHit + ", gameWon=" + isGameWon);
+
+        if (isGameWon) {
+            gameController.setGamePhase(GamePhase.GAME_WON);
+        } else if (!isHit) {
+            gameController.setCurrentTurn(gameController.getOpponentId());
+            System.out.println("I missed! It's now opponent's turn");
+        } else {
+            System.out.println("I hit! I keep my turn");
+        }
+
+        gameController.recordAttackResult(row, col, isHit);
         gameController.getTrackingBoard().setTrackingSunkShips((int[][]) message.data.get("shipsSunk"));
+        System.out.println("Tracking board updated");
     }
 
     private void sendMessage(Message message) {
@@ -164,11 +247,14 @@ public class NetworkController {
         return isHost;
     }
 
+    public void setConnectionCallback(ConnectionCallback callback) {
+        this.connectionCallback = callback;
+    }
+
     protected void onOpponentDisconnected() {
         gameController.setGamePhase(GamePhase.GAME_WON);
     }
 
-    // Additional helper methods for sending game messages
     public void sendAttack(int row, int col) {
         Map<String, Object> data = new HashMap<>();
         data.put("row", row);
@@ -182,5 +268,10 @@ public class NetworkController {
         data.put("playerId", playerId);
         Message message = new Message(MessageType.PLAYER_READY, data);
         sendMessage(message);
+
+        // If host and both players are now ready, send battle start message
+        if (isHost && gameController.isPlacementComplete() && gameController.isOpponentReady()) {
+            sendBattleStart();
+        }
     }
 }
