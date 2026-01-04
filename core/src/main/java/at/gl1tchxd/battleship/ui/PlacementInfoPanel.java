@@ -11,9 +11,10 @@ import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
  * Displays ship selection, placement status, and control buttons.
  */
 public class PlacementInfoPanel {
-    private final Table rootTable;
+    // Keep contentTable as the ship list table (was previously the scrollable content)
     private final Table contentTable;
-    private final ScrollPane scrollPane;
+    // New controls table for status labels and buttons
+    private final Table controlsTable;
     private final Skin skin;
 
     private Label opponentStatusLabel;
@@ -40,13 +41,13 @@ public class PlacementInfoPanel {
     public PlacementInfoPanel(Skin skin, Stage stage, String[] shipClassNames, int[] shipLengths, int[] shipCounts) {
         this.skin = skin;
 
-        // Content table that will be scrollable
+        // Content table will now hold the ship-class list (non-scrollable)
         this.contentTable = new Table();
         this.contentTable.top();
 
-        // Root table that contains the scroll pane
-        this.rootTable = new Table();
-        this.rootTable.setFillParent(false);
+        // Controls table holds status, orientation and buttons
+        this.controlsTable = new Table();
+        this.controlsTable.top();
 
         // Store configuration
         this.shipClassNames = shipClassNames;
@@ -56,38 +57,33 @@ public class PlacementInfoPanel {
 
         createUI();
 
-        // Create scroll pane with content
-        scrollPane = new ScrollPane(contentTable, skin);
-        scrollPane.setFadeScrollBars(false);
-        scrollPane.setScrollingDisabled(true, false);
-        rootTable.add(scrollPane).expand().fill();
-
-        stage.addActor(rootTable);
+        // NOTE: Do not add actors to the stage here. PlacementScreen will add and position
+        // the two tables (contentTable and controlsTable) so they can be laid out in columns.
     }
 
     private void createUI() {
-        // Opponent status
+        // Build controls table (status, current selection, mode, orientation)
         opponentStatusLabel = new Label("Opponent: Not Ready", skin);
         opponentStatusLabel.setColor(Color.RED);
-        contentTable.add(opponentStatusLabel).padBottom(20).row();
+        controlsTable.add(opponentStatusLabel).padBottom(20).row();
 
         // Current ship selection
-        contentTable.add(new Label("Selected Ship:", skin)).padBottom(10).row();
+        controlsTable.add(new Label("Selected Ship:", skin)).padBottom(10).row();
         currentShipLabel = new Label("Carrier #1", skin);
         currentShipLabel.setColor(Color.YELLOW);
-        contentTable.add(currentShipLabel).padBottom(30).row();
+        controlsTable.add(currentShipLabel).padBottom(30).row();
 
         // Placement mode indicator
         Label modeLabel = new Label("Left Click: Place Ship\nRight Click: Rotate", skin);
         modeLabel.setColor(Color.CYAN);
-        contentTable.add(modeLabel).padBottom(20).row();
+        controlsTable.add(modeLabel).padBottom(20).row();
 
         // Current orientation display
         orientationLabel = new Label("Orientation: Horizontal", skin);
         orientationLabel.setColor(Color.YELLOW);
-        contentTable.add(orientationLabel).padBottom(30).row();
+        controlsTable.add(orientationLabel).padBottom(30).row();
 
-        // Ship classes list
+        // Ship classes list header
         contentTable.add(new Label("Ship Classes:", skin)).padBottom(10).row();
         shipClassLabels = new Label[shipClassNames.length];
 
@@ -107,7 +103,7 @@ public class PlacementInfoPanel {
             contentTable.add(shipRow).padBottom(15).row();
         }
 
-        // Auto-place button
+        // Buttons go into the controls table
         autoPlaceButton = new ImageTextButton("Auto-Place", skin);
         autoPlaceButton.addListener(new ClickListener() {
             @Override
@@ -117,9 +113,8 @@ public class PlacementInfoPanel {
                 }
             }
         });
-        contentTable.add(autoPlaceButton).width(autoPlaceButton.getWidth() * 0.5f).height(autoPlaceButton.getHeight() * 0.5f).padTop(20).row();
+        controlsTable.add(autoPlaceButton).width(autoPlaceButton.getWidth() * 0.5f).height(autoPlaceButton.getHeight() * 0.5f).padTop(20).row();
 
-        // Reset button
         resetButton = new ImageTextButton("Reset", skin);
         resetButton.addListener(new ClickListener() {
             @Override
@@ -129,9 +124,8 @@ public class PlacementInfoPanel {
                 }
             }
         });
-        contentTable.add(resetButton).width(autoPlaceButton.getWidth() * 0.5f).height(autoPlaceButton.getHeight() * 0.5f).row();
+        controlsTable.add(resetButton).width(autoPlaceButton.getWidth() * 0.5f).height(autoPlaceButton.getHeight() * 0.5f).row();
 
-        // Confirm placement button
         confirmButton = new ImageTextButton("Confirm", skin);
         confirmButton.setDisabled(true);
         confirmButton.addListener(new ClickListener() {
@@ -142,7 +136,7 @@ public class PlacementInfoPanel {
                 }
             }
         });
-        contentTable.add(confirmButton).width(autoPlaceButton.getWidth() * 0.5f).height(autoPlaceButton.getHeight() * 0.5f).row();
+        controlsTable.add(confirmButton).width(autoPlaceButton.getWidth() * 0.5f).height(autoPlaceButton.getHeight() * 0.5f).row();
     }
 
     /**
@@ -258,11 +252,22 @@ public class PlacementInfoPanel {
 
     /**
      * Position the UI panel with size constraints.
+     * This method keeps a simple default behavior for backward compatibility: it will
+     * position and size the two internal tables next to each other within a default total width.
      */
     public void setPosition(float x, float y, float maxHeight) {
+        // Default total width used historically
+        float totalWidth = 250f;
+        float shipListWidth = totalWidth * 0.65f;
+        float controlsWidth = totalWidth - shipListWidth - 10f; // spacing
+
         contentTable.pack();
-        rootTable.setSize(250, maxHeight);
-        rootTable.setPosition(x, y);
+        contentTable.setSize(shipListWidth, maxHeight);
+        contentTable.setPosition(x, y);
+
+        controlsTable.pack();
+        controlsTable.setSize(Math.max(controlsWidth, 120f), maxHeight);
+        controlsTable.setPosition(x + shipListWidth + 10f, y);
     }
 
     /**
@@ -273,10 +278,17 @@ public class PlacementInfoPanel {
     }
 
     /**
-     * Get the table for advanced positioning.
+     * Get the table for the ship-class list (middle column).
      */
-    public Table getTable() {
-        return rootTable;
+    public Table getShipListTable() {
+        return contentTable;
+    }
+
+    /**
+     * Get the controls table (right column).
+     */
+    public Table getControlsTable() {
+        return controlsTable;
     }
 
     public String[] getShipClassNames() {
@@ -295,4 +307,3 @@ public class PlacementInfoPanel {
         return shipPlaced;
     }
 }
-

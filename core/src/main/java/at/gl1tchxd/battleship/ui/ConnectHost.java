@@ -104,12 +104,30 @@ public class ConnectHost {
         statusLabel.setWrap(true);
         bottomSection.add(statusLabel).width(widgetWidth).height(60).center().row();
 
+        // If already hosting when UI is created, switch button label and disable inputs
+        if (networkController != null && networkController.isHost()) {
+            hostButton.getLabel().setText("Cancel");
+            hostButton.setDisabled(false);
+            setInputsEnabled(false);
+            setStatus("Hosting on port " + portField.getText().trim() + ". Waiting for player...", false);
+        }
+
         // Add sections to main table - topSection expands to fill available space, bottomSection at bottom
         table.add(topSection).expandX().expandY().top().left().row();
         table.add(bottomSection).expandX().height(150).bottom().row();
     }
 
     private void handleHostClick() {
+        // If currently hosting, treat click as cancel
+        if (networkController != null && networkController.isHost()) {
+            networkController.stopHosting();
+            hostButton.getLabel().setText("Start Hosting");
+            hostButton.setDisabled(false);
+            setInputsEnabled(true);
+            setStatus("Hosting canceled", false);
+            return;
+        }
+
         try {
             int port = getPort();
 //            int boardSize = getBoardSize();
@@ -120,6 +138,11 @@ public class ConnectHost {
 
             try {
                 networkController.hostGame(port, 10, shipConfig);
+                // Hosting started successfully; allow canceling
+                hostButton.getLabel().setText("Cancel");
+                hostButton.setDisabled(false);
+                setInputsEnabled(false);
+
                 setStatus("Hosting on port " + port + ". Waiting for player...", false);
 
                 networkController.setConnectionCallback(new NetworkController.ConnectionCallback() {
@@ -143,6 +166,8 @@ public class ConnectHost {
             } catch (Exception e) {
                 setStatus("Failed to host: " + e.getMessage(), true);
                 hostButton.setDisabled(false);
+                hostButton.getLabel().setText("Start Hosting");
+                setInputsEnabled(true);
 
                 if (callback != null) {
                     callback.onHostError(e.getMessage());
@@ -151,6 +176,17 @@ public class ConnectHost {
 
         } catch (NumberFormatException e) {
             setStatus("Invalid input: Please enter valid numbers", true);
+        }
+    }
+
+    private void setInputsEnabled(boolean enabled) {
+        portField.setDisabled(!enabled);
+        // boardSizeField may be null in some UI variants, guard
+        if (boardSizeField != null) boardSizeField.setDisabled(!enabled);
+        if (shipConfigField != null) {
+            for (TextField t : shipConfigField) {
+                if (t != null) t.setDisabled(!enabled);
+            }
         }
     }
 
@@ -221,6 +257,8 @@ public class ConnectHost {
         }
         statusLabel.setText("");
         hostButton.setDisabled(false);
+        hostButton.getLabel().setText("Start Hosting");
+        setInputsEnabled(true);
     }
 
     public void dispose() {

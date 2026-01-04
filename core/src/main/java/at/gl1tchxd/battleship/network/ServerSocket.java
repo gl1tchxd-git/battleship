@@ -84,4 +84,26 @@ public class ServerSocket implements Socket {
     public Connection getClientConnection() {
         return clientConnection;
     }
+
+    /**
+     * Stop and close the server, disconnecting any clients and releasing ports.
+     */
+    public void stop() {
+        try {
+            if (server != null) {
+                // Stop the server thread and close sockets
+                server.stop();
+                try {
+                    server.close();
+                } catch (Exception ignore) {
+                    // close may throw if already closed; ignore to be robust
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("Error while stopping server: " + e.getMessage());
+        } finally {
+            clientConnection = null;
+            server = null;
+        }
+    }
 }

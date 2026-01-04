@@ -86,4 +86,27 @@ public class ClientSocket implements Socket{
     public Connection getServerConnection() {
         return serverConnection;
     }
+
+    /**
+     * Stop and close the client, disconnecting from server and releasing resources.
+     */
+    public void stop() {
+        try {
+            if (client != null) {
+                try {
+                    client.close();
+                } catch (Exception ignore) {
+                }
+                try {
+                    client.stop();
+                } catch (Exception ignore) {
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("Error while stopping client: " + e.getMessage());
+        } finally {
+            serverConnection = null;
+            client = null;
+        }
+    }
 }

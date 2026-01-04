@@ -17,9 +17,19 @@ public class NetworkController {
     private String playerId;
     private boolean handshakeComplete = false;
     private ConnectionCallback connectionCallback;
+    private DisconnectionCallback disconnectionCallback;
 
     public interface ConnectionCallback {
         void onClientConnected();
+    }
+
+    /**
+     * Called when a disconnection occurs.
+     * opponentDisconnected == true -> the opponent disconnected (we remained connected)
+     * opponentDisconnected == false -> we were disconnected from the opponent
+     */
+    public interface DisconnectionCallback {
+        void onDisconnected(boolean opponentDisconnected);
     }
 
     public NetworkController(GameController gameController) {
@@ -50,12 +60,18 @@ public class NetworkController {
 
             @Override
             public void onClientDisconnected(Connection connection) {
-                onOpponentDisconnected();
+                // The client disconnected (opponent disconnected)
+                onOpponentDisconnected(true);
             }
         });
     }
 
     public void joinGame(String host, int port) throws IOException {
+        // Prevent joining if this instance is already hosting a server
+        if (isHost || serverSocket != null) {
+            throw new IOException("Cannot join a game while this instance is hosting.");
+        }
+
         this.isHost = false;
 
         clientSocket = new ClientSocket(host, port, new ClientSocket.MessageHandler() {
@@ -71,9 +87,86 @@ public class NetworkController {
 
             @Override
             public void onDisconnectedFromServer(Connection connection) {
-                onOpponentDisconnected();
+                // We were disconnected from the server (we lost connection)
+                onOpponentDisconnected(false);
             }
         });
+    }
+
+    /**
+     * Stop hosting the current server (if any) and reset hosting state.
+     */
+    public void stopHosting() {
+        if (serverSocket != null) {
+            serverSocket.stop();
+            serverSocket = null;
+        }
+        isHost = false;
+        // Reset any handshake state so a future join/host starts clean
+        handshakeComplete = false;
+    }
+
+    /**
+     * Stop a pending/active client connection (if any).
+     */
+    public void stopJoining() {
+        if (clientSocket != null) {
+            clientSocket.stop();
+            clientSocket = null;
+        }
+        isHost = false;
+        handshakeComplete = false;
+    }
+
+    /**
+     * Set a callback to be invoked when a client connects (host) or disconnects.
+     */
+    public void setConnectionCallback(ConnectionCallback callback) {
+        this.connectionCallback = callback;
+    }
+
+    public void setDisconnectionCallback(DisconnectionCallback callback) {
+        this.disconnectionCallback = callback;
+    }
+
+    private void onOpponentDisconnected(boolean opponentDisconnected) {
+        // If we're in placement phase and a disconnection occurred, notify UI to return to connect
+        if (gameController.getGamePhase() == GamePhase.PLACEMENT) {
+            // Close any active sockets so the ConnectScreen shows correct state
+            if (isHost) {
+                stopHosting();
+            } else {
+                stopJoining();
+            }
+
+            if (disconnectionCallback != null) {
+                disconnectionCallback.onDisconnected(opponentDisconnected);
+            }
+            // Reset game state for the local player so the UI is clean
+            gameController.resetGame();
+            return;
+        }
+
+        // If in battle, decide winner/loser based on who disconnected
+        if (opponentDisconnected) {
+            // Opponent disconnected -> we (local player) win
+            gameController.setGamePhase(GamePhase.GAME_WON);
+        } else {
+            // We were disconnected -> local player loses
+            gameController.setGamePhase(GamePhase.GAME_LOST);
+        }
+
+        // Close any active sockets after the battle ended to clean up network resources
+        if (isHost) {
+            stopHosting();
+        } else {
+            stopJoining();
+        }
+
+        // Notify listeners regardless so UI can react (e.g., show messages)
+        if (disconnectionCallback != null) {
+            disconnectionCallback.onDisconnected(opponentDisconnected);
+        }
     }
 
     private void handleMessage(Message message) {
@@ -247,13 +340,6 @@ public class NetworkController {
         return isHost;
     }
 
-    public void setConnectionCallback(ConnectionCallback callback) {
-        this.connectionCallback = callback;
-    }
-
-    protected void onOpponentDisconnected() {
-        gameController.setGamePhase(GamePhase.GAME_WON);
-    }
 
     public void sendAttack(int row, int col) {
         Map<String, Object> data = new HashMap<>();

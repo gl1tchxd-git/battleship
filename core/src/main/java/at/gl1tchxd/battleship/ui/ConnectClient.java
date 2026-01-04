@@ -85,6 +85,12 @@ public class ConnectClient {
         statusLabel.setWrap(true);
         bottomSection.add(statusLabel).width(widgetWidth).height(60).center().row();
 
+        // If this instance is hosting, disable connect and show a helpful message
+        if (networkController != null && networkController.isHost()) {
+            connectButton.setDisabled(true);
+            setStatus("This instance is currently hosting a game — you cannot join a game here.", true);
+        }
+
         // Add sections to main table - topSection expands to fill available space, bottomSection at bottom
         table.add(topSection).expandX().expandY().top().left().row();
         table.add(bottomSection).expandX().height(150).bottom().row();
@@ -92,6 +98,16 @@ public class ConnectClient {
 
     private void handleConnectClick() {
         try {
+            // Prevent attempting to join when hosting (defensive check)
+            if (networkController != null && networkController.isHost()) {
+                setStatus("Cannot join while hosting a game on this instance.", true);
+                connectButton.setDisabled(true);
+                if (callback != null) {
+                    callback.onConnectError("Instance is hosting");
+                }
+                return;
+            }
+
             String host = getHost();
             int port = getPort();
 
@@ -179,6 +195,12 @@ public class ConnectClient {
         portField.setText("8080");
         statusLabel.setText("");
         connectButton.setDisabled(false);
+
+        // If the instance is hosting, keep connect disabled and show message
+        if (networkController != null && networkController.isHost()) {
+            connectButton.setDisabled(true);
+            setStatus("This instance is currently hosting a game — you cannot join a game here.", true);
+        }
     }
 
     public void dispose() {

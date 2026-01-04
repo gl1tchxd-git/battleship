@@ -65,6 +65,10 @@ public class GameController {
         placementComplete = true;
     }
 
+    public void setPlacementComplete(boolean complete) {
+        this.placementComplete = complete;
+    }
+
     public boolean isOpponentReady() {
         return opponentReady;
     }
@@ -123,6 +127,11 @@ public class GameController {
             myBoard = game.getBoard();
             trackingBoard = new Board(boardSize, true);
             currentPhase = GamePhase.PLACEMENT;
+
+            // Reset placement/ready state for a fresh game
+            placementComplete = false;
+            opponentReady = false;
+            currentTurnPlayerId = null;
         } catch (IllegalArgumentException e) {
             game = null;
             throw e;

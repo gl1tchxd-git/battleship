@@ -4,6 +4,7 @@ import at.gl1tchxd.battleship.BattleshipGame;
 import at.gl1tchxd.battleship.logic.Board;
 import at.gl1tchxd.battleship.logic.GamePhase;
 import at.gl1tchxd.battleship.logic.Ship;
+import at.gl1tchxd.battleship.network.NetworkController;
 import at.gl1tchxd.battleship.ui.GridRenderer;
 import at.gl1tchxd.battleship.ui.PlacementInfoPanel;
 import com.badlogic.gdx.Gdx;
@@ -61,6 +62,35 @@ public class PlacementScreen implements Screen {
         background = new Texture(Gdx.files.internal("sprites/shared_background.png"));
 
         Gdx.input.setInputProcessor(stage);
+
+        // Reset placement state on show to avoid carrying over readiness from previous rounds
+        if (game != null && game.getGameController() != null) {
+            game.getGameController().setPlacementComplete(false);
+            game.getGameController().setOpponentReady(false);
+            game.getGameController().setGamePhase(GamePhase.PLACEMENT);
+            // also clear any previous boards if necessary
+            // Note: initializeGame will create fresh boards when hosting/joining, but ensure clean state here
+        }
+
+        // Register disconnection callback so that if connection is severed during placement
+        // we return to the ConnectScreen (host/join screen).
+        if (game.getNetworkController() != null) {
+            game.getNetworkController().setDisconnectionCallback(new NetworkController.DisconnectionCallback() {
+                @Override
+                public void onDisconnected(boolean opponentDisconnected) {
+                    // Only act if we're in placement phase
+                    if (game.getGameController().getGamePhase() == GamePhase.PLACEMENT) {
+                        Gdx.app.postRunnable(new Runnable() {
+                            @Override
+                            public void run() {
+                                // Reset UI and go back to connect screen
+                                game.setScreen(new ConnectScreen(game));
+                            }
+                        });
+                    }
+                }
+            });
+        }
     }
 
     private boolean uiInitialized = false;
@@ -87,7 +117,37 @@ public class PlacementScreen implements Screen {
         float panelX = boardX + boardSize + 30;
         float panelMaxHeight = boardSize; // Match board height
         infoPanel = new PlacementInfoPanel(game.getSkin(), stage, shipClassNames, shipLengths, shipCounts);
-        infoPanel.setPosition(panelX, boardY, panelMaxHeight);
+
+        // Add the two tables to the stage so we can position them in columns
+        stage.addActor(infoPanel.getShipListTable());
+        stage.addActor(infoPanel.getControlsTable());
+
+        // Compute available width for side panels and layout in two columns (ship list + controls)
+        float spacing = 10f;
+        float rightMargin = 20f;
+        float remainingWidth = screenWidth - panelX - rightMargin;
+        float minShipListWidth = 240f;
+        float minControlsWidth = 160f;
+
+        if (remainingWidth >= minShipListWidth + spacing + minControlsWidth) {
+            float shipListWidth = Math.max(minShipListWidth, remainingWidth * 0.6f);
+            float controlsWidth = remainingWidth - shipListWidth - spacing;
+
+            infoPanel.getShipListTable().pack();
+            infoPanel.getShipListTable().setSize(shipListWidth, panelMaxHeight);
+            infoPanel.getShipListTable().setPosition(panelX, boardY);
+
+            infoPanel.getControlsTable().pack();
+            infoPanel.getControlsTable().setSize(controlsWidth, panelMaxHeight);
+            infoPanel.getControlsTable().setPosition(panelX + shipListWidth + spacing, boardY);
+        } else {
+            // Not enough horizontal space: fall back to compact/default widths using setPosition
+            infoPanel.setPosition(panelX, boardY, panelMaxHeight);
+            // Ensure the tables are positioned as setPosition determined
+            // setPosition already sizes and positions internal tables
+            // but we still want them to be visible as stage actors (already added)
+        }
+
         infoPanel.setCallback(new PlacementInfoPanel.PlacementCallback() {
             @Override
             public void onAutoPlace() {
@@ -525,7 +585,26 @@ public class PlacementScreen implements Screen {
         float panelX = boardX + boardSize + 30;
         float panelMaxHeight = boardSize;
         if (infoPanel != null) {
-            infoPanel.setPosition(panelX, boardY, panelMaxHeight);
+            float screenWidth = width;
+            float spacing = 10f;
+            float rightMargin = 20f;
+            float remainingWidth = screenWidth - panelX - rightMargin;
+            float minShipListWidth = 240f;
+            float minControlsWidth = 160f;
+
+            if (remainingWidth >= minShipListWidth + spacing + minControlsWidth) {
+                float shipListWidth = Math.max(minShipListWidth, remainingWidth * 0.6f);
+                float controlsWidth = remainingWidth - shipListWidth - spacing;
+
+                infoPanel.getShipListTable().setSize(shipListWidth, panelMaxHeight);
+                infoPanel.getShipListTable().setPosition(panelX, boardY);
+
+                infoPanel.getControlsTable().setSize(controlsWidth, panelMaxHeight);
+                infoPanel.getControlsTable().setPosition(panelX + shipListWidth + spacing, boardY);
+            } else {
+                // Fallback to default positioning
+                infoPanel.setPosition(panelX, boardY, panelMaxHeight);
+            }
         }
     }
 
@@ -539,6 +618,10 @@ public class PlacementScreen implements Screen {
 
     @Override
     public void hide() {
+        // Clear disconnection callback to avoid holding references when leaving the screen
+        if (game.getNetworkController() != null) {
+            game.getNetworkController().setDisconnectionCallback(null);
+        }
     }
 
     @Override
@@ -546,5 +629,6 @@ public class PlacementScreen implements Screen {
         if (stage != null) stage.dispose();
         if (batch != null) batch.dispose();
         if (shapeRenderer != null) shapeRenderer.dispose();
+        if (background != null) background.dispose();
     }
 }

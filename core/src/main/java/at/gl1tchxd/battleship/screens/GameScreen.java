@@ -4,6 +4,7 @@ import at.gl1tchxd.battleship.BattleshipGame;
 import at.gl1tchxd.battleship.logic.Board;
 import at.gl1tchxd.battleship.logic.GamePhase;
 import at.gl1tchxd.battleship.logic.Ship;
+import at.gl1tchxd.battleship.network.NetworkController;
 import at.gl1tchxd.battleship.ui.GameInfoPanel;
 import at.gl1tchxd.battleship.ui.GridRenderer;
 import com.badlogic.gdx.Gdx;
@@ -11,6 +12,7 @@ import com.badlogic.gdx.Input;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
+import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.scenes.scene2d.Stage;
@@ -22,6 +24,7 @@ public class GameScreen implements Screen {
     private final BattleshipGame game;
     private Stage stage;
     private SpriteBatch batch;
+    private Texture background;
     private ShapeRenderer shapeRenderer;
 
     private GridRenderer trackingGridRenderer; // Opponent's board (for attacking)
@@ -49,9 +52,23 @@ public class GameScreen implements Screen {
     public void show() {
         stage = new Stage(new ScreenViewport());
         batch = new SpriteBatch();
+        background = new Texture(Gdx.files.internal("sprites/shared_background.png"));
         shapeRenderer = new ShapeRenderer();
 
         Gdx.input.setInputProcessor(stage);
+
+        // Register a simple disconnection callback to ensure UI updates if connection is severed
+        if (game.getNetworkController() != null) {
+            game.getNetworkController().setDisconnectionCallback(new NetworkController.DisconnectionCallback() {
+                @Override
+                public void onDisconnected(boolean opponentDisconnected) {
+                    // If the disconnection occurred during battle, GameController phase was already set
+                    // to GAME_WON or GAME_LOST in NetworkController; we just ensure the UI reflects it.
+                    // Optionally we could schedule a return to ConnectScreen here, but we'll let the
+                    // player view the victory/defeat screen and press ESC/Enter to return.
+                }
+            });
+        }
 
         initializeUI();
     }
@@ -100,6 +117,10 @@ public class GameScreen implements Screen {
         Gdx.gl.glClearColor(0.1f, 0.15f, 0.2f, 1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
+        batch.begin();
+        batch.draw(background, 0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        batch.end();
+
         if (game.getGameController().getGame() == null) {
             batch.begin();
             game.getSkin().getFont("default").draw(batch, "Waiting for game...",
@@ -118,6 +139,19 @@ public class GameScreen implements Screen {
 
         stage.act(delta);
         stage.draw();
+
+        // If the game has ended (win or loss), allow returning to connect screen with ESC or Enter
+        GamePhase phase = game.getGameController().getGamePhase();
+        if (phase == GamePhase.GAME_WON || phase == GamePhase.GAME_LOST) {
+            if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE) || Gdx.input.isKeyJustPressed(Input.Keys.ENTER)) {
+                // Ensure network cleaned up and go back to connect screen
+                if (game.getNetworkController() != null) {
+                    if (game.getNetworkController().isHost()) game.getNetworkController().stopHosting();
+                    else game.getNetworkController().stopJoining();
+                }
+                game.setScreen(new ConnectScreen(game));
+            }
+        }
     }
 
     private void handleInput() {
@@ -143,8 +177,11 @@ public class GameScreen implements Screen {
     private void performAttack(int row, int col) {
         if (!game.getGameController().isMyTurn()) return;
 
-        // Send attack to opponent via network
-        game.getNetworkController().sendAttack(row, col);
+        // Send attack to opponent via network (defensive null-check)
+        NetworkController nc = game.getNetworkController();
+        if (nc != null) {
+            nc.sendAttack(row, col);
+        }
     }
 
     private void updateUI() {
@@ -168,10 +205,10 @@ public class GameScreen implements Screen {
                 }
                 break;
             case GAME_WON:
-                infoPanel.setStatus("VICTORY!", Color.GREEN);
+                infoPanel.setStatus("VICTORY! Press Enter or ESC to return.", Color.GREEN);
                 break;
             case GAME_LOST:
-                infoPanel.setStatus("DEFEAT!", Color.RED);
+                infoPanel.setStatus("DEFEAT! Press Enter or ESC to return.", Color.RED);
                 break;
             default:
                 infoPanel.setStatus("Battle in Progress", Color.CYAN);
