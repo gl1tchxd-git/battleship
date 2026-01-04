@@ -63,7 +63,6 @@ public class GameController {
     public void confirmPlacement() {
         if (game == null) throw new IllegalStateException("Game not initialized");
         placementComplete = true;
-        tryStartBattle();
     }
 
     public boolean isOpponentReady() {
@@ -72,13 +71,6 @@ public class GameController {
 
     public void setOpponentReady(boolean ready) {
         this.opponentReady = ready;
-        tryStartBattle();
-    }
-
-    private void tryStartBattle() {
-        if (placementComplete && opponentReady) {
-            currentPhase = GamePhase.BATTLE;
-        }
     }
 
     public GamePhase getGamePhase() {
@@ -139,7 +131,19 @@ public class GameController {
 
     public boolean placeShip(int index, int row, int col, boolean horizontal) {
         if (game == null) throw new IllegalStateException("Game not initialized");
+        if (isPlacementComplete()) return false;
         return game.placeShip(index, row, col, horizontal);
+    }
+
+    public boolean autoPlaceAll() {
+        if (game == null) throw new IllegalStateException("Game not initialized");
+        return game.autoPlaceAll();
+    }
+
+    public boolean clear() {
+        if (game == null) throw new IllegalStateException("Game not initialized");
+        if (isPlacementComplete()) return false;
+        return game.getBoard().clear();
     }
 
     public AttackResult attackWithResult(int row, int col) {
@@ -178,29 +182,23 @@ public class GameController {
         return true;
     }
 
-    public int getRemainingShips() {
-        if (game == null) return 0;
-
-        int count = 0;
-        Map<Integer, Ship[]> fleet = game.getFleet();
-        for (Ship[] ships : fleet.values()) {
-            for (Ship ship : ships) {
-                if (!ship.isSunk()) {
-                    count++;
-                }
-            }
-        }
-        return count;
-    }
-
-
     public Game getGame() {
         return game;
     }
 
     public int[][] exportSunk() {
-        Map<Integer, Ship[]> fleet = null;
         int[][] result = new int[5][2];
+
+        if (game == null) {
+            // Return empty result if game not initialized
+            return result;
+        }
+
+        Map<Integer, Ship[]> fleet = game.getFleet();
+        if (fleet == null) {
+            return result;
+        }
+
         for (int i = 0; i < 5; i++) {
             int sunkCount = 0;
             int totalCount = 0;

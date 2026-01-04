@@ -1,52 +1,108 @@
 package at.gl1tchxd.battleship.screens;
 
 import at.gl1tchxd.battleship.BattleshipGame;
-import at.gl1tchxd.battleship.network.NetworkController;
 import at.gl1tchxd.battleship.ui.ConnectHost;
-import com.badlogic.gdx.Game;
+import at.gl1tchxd.battleship.ui.ConnectClient;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
-import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.Texture;
-import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
-import com.badlogic.gdx.graphics.g2d.freetype.FreeType;
-import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
 import com.badlogic.gdx.scenes.scene2d.Stage;
-import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 
 public class ConnectScreen implements Screen {
     private final BattleshipGame game;
 
-    private final Stage stage;
+    private Stage stage;
 
-    private Texture mainMenuTexture;
+    private Texture background;
     private SpriteBatch batch;
-    private FreeTypeFontGenerator fontGen;
 
     private ConnectHost connectHost;
+    private ConnectClient connectClient;
 
     public ConnectScreen(BattleshipGame game) {
         this.game = game;
         this.stage = null;
         this.batch = null;
-        this.mainMenuTexture = null;
-        this.fontGen = null;
+        this.background = null;
         this.connectHost = null;
+        this.connectClient = null;
     }
 
     @Override
     public void show() {
-        if (mainMenuTexture == null) {
-            mainMenuTexture = new Texture(Gdx.files.internal("sprites/shared_background.png"));
-        }
+        if (stage == null) stage = new Stage();
         if (batch == null) batch = new SpriteBatch();
-        if (fontGen == null) fontGen = new FreeTypeFontGenerator(Gdx.files.internal("fonts/BBHBartle-Regular.ttf"));
-        if (connectHost == null) {
-
+        if (background == null) {
+            background = new Texture(Gdx.files.internal("sprites/connect_background.png"));
         }
+        if (connectHost == null) {
+            connectHost = new ConnectHost(game.getNetworkController(), game.getSkin(), stage);
+            connectHost.setCallback(new ConnectHost.HostCallback() {
+                @Override
+                public void onHostSuccess(int port, int boardSize, int[] shipConfig) {
+                }
+
+                @Override
+                public void onHostError(String errorMessage) {
+                }
+
+                @Override
+                public void onClientConnected() {
+                    game.setScreen(new PlacementScreen(game));
+                }
+            });
+        }
+        if (connectClient == null) {
+            connectClient = new ConnectClient(game.getNetworkController(), game.getSkin(), stage);
+            connectClient.setCallback(new ConnectClient.ClientCallback() {
+                @Override
+                public void onConnectSuccess(String host, int port) {
+                    game.setScreen(new PlacementScreen(game));
+                }
+
+                @Override
+                public void onConnectError(String errorMessage) {
+
+                }
+            });
+        }
+
+        // Position both widgets side by side, with their midpoint at screen center
+        float screenWidth = Gdx.graphics.getWidth();
+        float spacing = 175;
+        float widgetY = 100;
+        float widgetHeight = 375; // Height from widgetY to near top of screen
+        float widgetWidth = 250f; // Same width for both widgets
+
+        Table hostTable = connectHost.getTable();
+        Table clientTable = connectClient.getTable();
+
+        float centerX = screenWidth / 2f;
+        float hostX = centerX - widgetWidth - spacing / 2f;
+        float clientX = centerX + spacing / 2f;
+
+        // Remove tables from stage, set bounds, then re-add
+        hostTable.remove();
+        clientTable.remove();
+
+        // Set bounds (position + size) before adding back to stage
+        hostTable.setBounds(hostX, widgetY, widgetWidth, widgetHeight);
+        clientTable.setBounds(clientX, widgetY, widgetWidth, widgetHeight);
+
+        // Re-add to stage
+        stage.addActor(hostTable);
+        stage.addActor(clientTable);
+
+        // Force layout
+        hostTable.invalidate();
+        clientTable.invalidate();
+        hostTable.layout();
+        clientTable.layout();
+
+        Gdx.input.setInputProcessor(stage);
     }
 
     @Override
@@ -58,24 +114,29 @@ public class ConnectScreen implements Screen {
     }
 
     public void draw(float delta) {
-        if (batch == null || fontGen == null || mainMenuTexture == null || connectHost == null) return;
+        if (batch == null || background == null) return;
+
         batch.begin();
-        batch.draw(mainMenuTexture, 0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        batch.draw(background, 0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         batch.end();
-        connectHost.render(delta);
+
+        if (stage != null) {
+            stage.act(delta);
+            stage.draw();
+        }
     }
 
     public void input(float delta) {
-        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.SPACE)) {
-             this.game.setScreen(new ConnectScreen(this.game));
+        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ESCAPE)) {
+             this.game.setScreen(new MainMenuScreen(this.game));
         }
 
     }
 
     @Override
     public void resize(int width, int height) {
-        if (connectHost != null) {
-            connectHost.getStage().getViewport().update(width, height, true);
+        if (stage != null) {
+            stage.getViewport().update(width, height, true);
         }
     }
 
@@ -97,8 +158,9 @@ public class ConnectScreen implements Screen {
     @Override
     public void dispose() {
         if (batch != null) batch.dispose();
-        if (mainMenuTexture != null) mainMenuTexture.dispose();
-        if (fontGen != null) fontGen.dispose();
+        if (background != null) background.dispose();
         if (connectHost != null) connectHost.dispose();
+        if (connectClient != null) connectClient.dispose();
+        if (stage != null) stage.dispose();
     }
 }
