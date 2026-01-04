@@ -1,6 +1,7 @@
 package at.gl1tchxd.battleship.screens;
 
 import at.gl1tchxd.battleship.BattleshipGame;
+import at.gl1tchxd.battleship.logic.GameController;
 import at.gl1tchxd.battleship.network.NetworkController;
 import at.gl1tchxd.battleship.ui.ConnectHost;
 import at.gl1tchxd.battleship.ui.ConnectClient;
@@ -50,9 +51,10 @@ public class ConnectScreen implements Screen {
         if (fontGen == null) fontGen = new FreeTypeFontGenerator(Gdx.files.internal("fonts/BBHBartle-Regular.ttf"));
         if (skin == null) skin = new Skin(Gdx.files.internal("uiskin.json"));
         
-        // Initialize network controller (assuming null GameController for now)
+        // Initialize network controller with a GameController
         if (networkController == null) {
-            networkController = new NetworkController(null);
+            GameController gameController = new GameController();
+            networkController = new NetworkController(gameController);
         }
         
         if (stage == null) {
