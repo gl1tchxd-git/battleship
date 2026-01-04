@@ -2,12 +2,10 @@ package at.gl1tchxd.battleship.ui;
 
 import at.gl1tchxd.battleship.network.NetworkController;
 import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.*;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
-import com.badlogic.gdx.utils.viewport.ScreenViewport;
 
 /**
  * UI component for hosting a game.
@@ -23,11 +21,12 @@ public class ConnectHost {
 
     private TextField portField;
     private TextField boardSizeField;
-    private TextField[] shipConfigField;
+    private TextField shipConfigField;
     private TextButton hostButton;
     private Label statusLabel;
 
     private final NetworkController networkController;
+    private HostCallback callback;
 
     public ConnectHost(NetworkController networkController, Skin skin, Stage stage, int x, int y) {
         this.networkController = networkController;
@@ -40,8 +39,8 @@ public class ConnectHost {
 
     private void createUI() {
         table = new Table();
-        table.setFillParent(true);
-        table.center();
+        table.setFillParent(false);
+        table.left();
 
         // Title
         Label titleLabel = new Label("Host Game", skin);
@@ -63,13 +62,10 @@ public class ConnectHost {
 
         // Ship configuration input
         Label shipConfigLabel = new Label("Ship Config:", skin);
-        for (TextField field : this.shipConfigField) {
-            field = new TextField("", skin);
-        }
+        shipConfigField = new TextField("5,4,3,3,2", skin);
+        shipConfigField.setMessageText("Ship sizes (e.g., 5,4,3,3,2)");
         table.add(shipConfigLabel).padRight(10);
-        for (TextField field : this.shipConfigField) {
-            table.add(field).width(200).padBottom(10).row();
-        }
+        table.add(shipConfigField).width(200).padBottom(10).row();
 
         // Host button
         hostButton = new TextButton("Start Hosting", skin);
@@ -97,9 +93,11 @@ public class ConnectHost {
             // Parse port
             int port = Integer.parseInt(portField.getText().trim());
             int boardSize = Integer.parseInt(boardSizeField.getText().trim());
+            int[] shipConfig = getShipConfig();
 
-            for (TextField field : shipConfigField) {
-
+            // Notify callback that hosting is starting
+            if (callback != null) {
+                callback.onHostStart();
             }
 
             // Start hosting
@@ -107,8 +105,7 @@ public class ConnectHost {
             hostButton.setDisabled(true);
 
             try {
-                networkController.hostGame(port);
-                networkController.sendGameInit(boardSize, shipConfig);
+                networkController.hostGame(port, boardSize, shipConfig);
                 setStatus("Hosting on port " + port + ". Waiting for player...", false);
 
                 if (callback != null) {
@@ -239,8 +236,17 @@ public class ConnectHost {
      * Dispose of resources.
      */
     public void dispose() {
-        stage.dispose();
-        skin.dispose();
+        // Note: stage and skin are managed by the parent screen
+    }
+
+    /**
+     * Callback interface for host events.
+     */
+    public interface HostCallback {
+        void onHostStart();
+        void onHostSuccess(int port, int boardSize, int[] shipConfig);
+        void onHostError(String errorMessage);
+        void onClientConnected();
     }
 }
 

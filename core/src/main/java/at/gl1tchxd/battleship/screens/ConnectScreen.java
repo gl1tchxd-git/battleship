@@ -3,30 +3,30 @@ package at.gl1tchxd.battleship.screens;
 import at.gl1tchxd.battleship.BattleshipGame;
 import at.gl1tchxd.battleship.network.NetworkController;
 import at.gl1tchxd.battleship.ui.ConnectHost;
-import com.badlogic.gdx.Game;
+import at.gl1tchxd.battleship.ui.ConnectClient;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
-import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.Texture;
-import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
-import com.badlogic.gdx.graphics.g2d.freetype.FreeType;
 import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
-import com.badlogic.gdx.scenes.scene2d.ui.Table;
+import com.badlogic.gdx.utils.viewport.ScreenViewport;
 
 public class ConnectScreen implements Screen {
     private final BattleshipGame game;
 
-    private final Stage stage;
+    private Stage stage;
 
     private Texture mainMenuTexture;
     private SpriteBatch batch;
     private FreeTypeFontGenerator fontGen;
+    private Skin skin;
 
     private ConnectHost connectHost;
+    private ConnectClient connectClient;
+    private NetworkController networkController;
 
     public ConnectScreen(BattleshipGame game) {
         this.game = game;
@@ -34,7 +34,10 @@ public class ConnectScreen implements Screen {
         this.batch = null;
         this.mainMenuTexture = null;
         this.fontGen = null;
+        this.skin = null;
         this.connectHost = null;
+        this.connectClient = null;
+        this.networkController = null;
     }
 
     @Override
@@ -44,9 +47,85 @@ public class ConnectScreen implements Screen {
         }
         if (batch == null) batch = new SpriteBatch();
         if (fontGen == null) fontGen = new FreeTypeFontGenerator(Gdx.files.internal("fonts/BBHBartle-Regular.ttf"));
-        if (connectHost == null) {
-
+        if (skin == null) skin = new Skin(Gdx.files.internal("uiskin.json"));
+        
+        // Initialize network controller (assuming null GameController for now)
+        if (networkController == null) {
+            networkController = new NetworkController(null);
         }
+        
+        if (stage == null) {
+            stage = new Stage(new ScreenViewport());
+        }
+        
+        if (connectHost == null) {
+            connectHost = new ConnectHost(networkController, skin, stage, 0, 0);
+            
+            // Set up callback for host events
+            connectHost.setCallback(new ConnectHost.HostCallback() {
+                @Override
+                public void onHostStart() {
+                    if (connectClient != null) {
+                        connectClient.setConnectEnabled(false);
+                    }
+                }
+
+                @Override
+                public void onHostSuccess(int port, int boardSize, int[] shipConfig) {
+                    if (connectClient != null) {
+                        connectClient.setConnectEnabled(false);
+                    }
+                    // TODO: Transition to PlacementScreen when it's available
+                    // game.setScreen(new PlacementScreen(game));
+                }
+
+                @Override
+                public void onHostError(String errorMessage) {
+                    if (connectClient != null) {
+                        connectClient.setConnectEnabled(true);
+                    }
+                }
+
+                @Override
+                public void onClientConnected() {
+                    // TODO: Transition to PlacementScreen when it's available
+                    // game.setScreen(new PlacementScreen(game));
+                }
+            });
+        }
+        
+        if (connectClient == null) {
+            connectClient = new ConnectClient(networkController, skin, stage, 0, 0);
+            
+            // Set up callback for client events
+            connectClient.setCallback(new ConnectClient.ClientCallback() {
+                @Override
+                public void onConnectStart() {
+                    if (connectHost != null) {
+                        connectHost.setHostEnabled(false);
+                    }
+                }
+
+                @Override
+                public void onConnectSuccess(String host, int port) {
+                    if (connectHost != null) {
+                        connectHost.setHostEnabled(false);
+                    }
+                    // TODO: Transition to PlacementScreen when it's available
+                    // game.setScreen(new PlacementScreen(game));
+                }
+
+                @Override
+                public void onConnectError(String errorMessage) {
+                    if (connectHost != null) {
+                        connectHost.setHostEnabled(true);
+                    }
+                }
+            });
+        }
+        
+        // Set input processor to handle the stage
+        Gdx.input.setInputProcessor(stage);
     }
 
     @Override
@@ -58,11 +137,15 @@ public class ConnectScreen implements Screen {
     }
 
     public void draw(float delta) {
-        if (batch == null || fontGen == null || mainMenuTexture == null || connectHost == null) return;
+        if (batch == null || fontGen == null || mainMenuTexture == null) return;
         batch.begin();
         batch.draw(mainMenuTexture, 0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         batch.end();
-        connectHost.render(delta);
+        
+        if (stage != null) {
+            stage.act(delta);
+            stage.draw();
+        }
     }
 
     public void input(float delta) {
@@ -74,8 +157,8 @@ public class ConnectScreen implements Screen {
 
     @Override
     public void resize(int width, int height) {
-        if (connectHost != null) {
-            connectHost.getStage().getViewport().update(width, height, true);
+        if (stage != null) {
+            stage.getViewport().update(width, height, true);
         }
     }
 
@@ -99,6 +182,9 @@ public class ConnectScreen implements Screen {
         if (batch != null) batch.dispose();
         if (mainMenuTexture != null) mainMenuTexture.dispose();
         if (fontGen != null) fontGen.dispose();
+        if (skin != null) skin.dispose();
+        if (stage != null) stage.dispose();
         if (connectHost != null) connectHost.dispose();
+        if (connectClient != null) connectClient.dispose();
     }
 }
