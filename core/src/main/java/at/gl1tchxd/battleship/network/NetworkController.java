@@ -87,8 +87,8 @@ public class NetworkController {
 
             @Override
             public void onDisconnectedFromServer(Connection connection) {
-                // We were disconnected from the server (we lost connection)
-                onOpponentDisconnected(false);
+                // The server (opponent) disconnected - from client's perspective, opponent left
+                onOpponentDisconnected(true);
             }
         });
     }

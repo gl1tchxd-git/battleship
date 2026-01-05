@@ -15,7 +15,11 @@ import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
+import com.badlogic.gdx.scenes.scene2d.ui.ImageTextButton;
+import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
+import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 
 import java.util.Map;
@@ -30,6 +34,7 @@ public class GameScreen implements Screen {
     private GridRenderer trackingGridRenderer; // Opponent's board (for attacking)
     private GridRenderer myGridRenderer;       // Own board (showing ships & hits)
     private GameInfoPanel infoPanel;
+    private ImageTextButton exitButton;
 
     private float trackingBoardX;
     private float trackingBoardY;
@@ -43,6 +48,11 @@ public class GameScreen implements Screen {
     private int hoveredCol = -1;
 
     private int[] shipCounts = {1, 1, 1, 1, 1};
+
+    private static final float END_SCREEN_DELAY = 1.0f; // 1 second delay
+    private float endGameTimer = 0f;
+    private boolean gameEnded = false;
+    private boolean gameWon = false;
 
     public GameScreen(BattleshipGame game) {
         this.game = game;
@@ -87,29 +97,71 @@ public class GameScreen implements Screen {
             shipCounts = config.clone();
         }
 
-        float padding = 30;
+        // Layout constants - ADJUST THESE to change spacing
+        float padding = 40;           // Base padding from edges
+        float borderPadding = 50;     // Extra padding for integrated border
+        float columnPadding = 60;     // Padding between columns
+        float gridVerticalOffset = 20; // Move grids down (positive) or up (negative)
 
-        trackingBoardSize = screenHeight * 0.8f;
-        trackingBoardX = padding;
-        trackingBoardY = (screenHeight - trackingBoardSize) / 2;
+        trackingBoardSize = screenHeight * 0.65f;  // Reduced from 0.8 for more column space
+        trackingBoardX = padding + borderPadding;
+        trackingBoardY = (screenHeight - trackingBoardSize) / 2 - gridVerticalOffset;
 
         trackingGridRenderer = new GridRenderer(shapeRenderer, batch, game.getSkin().getFont("default"));
         trackingGridRenderer.setBounds(trackingBoardX, trackingBoardY, trackingBoardSize, gridSize);
 
         myBoardSize = screenHeight * 0.35f;
-        myBoardX = screenWidth - myBoardSize - padding;
-        myBoardY = screenHeight - myBoardSize - padding - 30; // 30 for label space
+        myBoardX = screenWidth - myBoardSize - padding - borderPadding;
+        myBoardY = screenHeight - myBoardSize - padding - borderPadding - 30 - gridVerticalOffset;
 
         myGridRenderer = new GridRenderer(shapeRenderer, batch, game.getSkin().getFont("default"));
         myGridRenderer.setBounds(myBoardX, myBoardY, myBoardSize, gridSize);
 
-        float panelX = trackingBoardX + trackingBoardSize + padding;
-        float panelWidth = myBoardX - panelX - padding;
+        float panelX = trackingBoardX + trackingBoardSize + columnPadding;
+        float panelWidth = myBoardX - panelX - columnPadding;
         float panelHeight = trackingBoardSize;
         float panelY = trackingBoardY;
 
         infoPanel = new GameInfoPanel(game.getSkin(), stage, shipCounts);
         infoPanel.setPosition(panelX, panelY, panelWidth, panelHeight);
+
+        // Create EXIT button - positioned directly, not in a table
+        exitButton = new ImageTextButton("EXIT", game.getSkin());
+        exitButton.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                exitToMainMenu();
+            }
+        });
+
+        // Scale button to match other buttons (0.5x)
+        float buttonWidth = exitButton.getWidth() * 0.5f;
+        float buttonHeight = exitButton.getHeight() * 0.5f;
+        exitButton.setSize(buttonWidth, buttonHeight);
+
+        // Position button below mini board, aligned to left edge of mini board
+        float exitButtonX = myBoardX;
+        float exitButtonY = myBoardY - buttonHeight - 20; // 20px gap below mini board
+        exitButton.setPosition(exitButtonX, exitButtonY);
+
+        stage.addActor(exitButton);
+    }
+
+    private void exitToMainMenu() {
+        // Reset game phase to prevent win/loss trigger on disconnect
+        game.getGameController().resetGame();
+
+        // Clean up network connections
+        if (game.getNetworkController() != null) {
+            if (game.getNetworkController().isHost()) {
+                game.getNetworkController().stopHosting();
+            } else {
+                game.getNetworkController().stopJoining();
+            }
+        }
+
+        // Return to main menu
+        game.setScreen(new MainMenuScreen(game));
     }
 
     @Override
@@ -140,16 +192,21 @@ public class GameScreen implements Screen {
         stage.act(delta);
         stage.draw();
 
-        // If the game has ended (win or loss), allow returning to connect screen with ESC or Enter
+        // If the game has ended (win or loss), wait for delay then transition to EndScreen
         GamePhase phase = game.getGameController().getGamePhase();
         if (phase == GamePhase.GAME_WON || phase == GamePhase.GAME_LOST) {
-            if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE) || Gdx.input.isKeyJustPressed(Input.Keys.ENTER)) {
-                // Ensure network cleaned up and go back to connect screen
-                if (game.getNetworkController() != null) {
-                    if (game.getNetworkController().isHost()) game.getNetworkController().stopHosting();
-                    else game.getNetworkController().stopJoining();
+            if (!gameEnded) {
+                // Game just ended, start the timer
+                gameEnded = true;
+                gameWon = (phase == GamePhase.GAME_WON);
+                endGameTimer = 0f;
+            } else {
+                // Game ended, count down
+                endGameTimer += delta;
+                if (endGameTimer >= END_SCREEN_DELAY) {
+                    // Delay complete, transition to EndScreen
+                    game.setScreen(new EndScreen(game, gameWon));
                 }
-                game.setScreen(new ConnectScreen(game));
             }
         }
     }
@@ -264,70 +321,45 @@ public class GameScreen implements Screen {
     }
 
     private void drawTrackingBoard() {
-        // Draw grid
-        trackingGridRenderer.drawGrid();
-        trackingGridRenderer.drawCoordinateLabels();
-
         // Get tracking board hits/misses
         Board trackingBoard = game.getGameController().getTrackingBoard();
+        int[][] hitGrid = null;
         if (trackingBoard != null) {
-            int[][] hitGrid = buildHitGrid(trackingBoard);
-            trackingGridRenderer.drawHitsAndMisses(hitGrid);
+            hitGrid = buildHitGrid(trackingBoard);
         }
+
+        // Draw grid with textures
+        trackingGridRenderer.drawGrid(true, null, hitGrid, Gdx.graphics.getDeltaTime());
+        trackingGridRenderer.drawCoordinateLabels();
 
         // Draw hover highlight for attack targeting
         if (hoveredRow >= 0 && hoveredCol >= 0 && game.getGameController().isMyTurn()) {
-            drawTargetingHighlight(hoveredRow, hoveredCol);
+            trackingGridRenderer.drawTargetingHighlight(hoveredRow, hoveredCol);
         }
     }
 
-    private void drawTargetingHighlight(int row, int col) {
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        shapeRenderer.setColor(1, 1, 0, 0.3f); // Yellow transparent
-
-        float cellSize = trackingGridRenderer.getCellSize();
-        float x = trackingGridRenderer.getBoardX() + col * cellSize;
-        // Flip Y: row 0 should be at top
-        float y = trackingGridRenderer.getBoardY() + (gridSize - 1 - row) * cellSize;
-        shapeRenderer.rect(x, y, cellSize, cellSize);
-
-        shapeRenderer.end();
-
-        // Draw crosshair
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
-        shapeRenderer.setColor(Color.RED);
-        float centerX = x + cellSize / 2;
-        float centerY = y + cellSize / 2;
-        float crossSize = cellSize * 0.3f;
-
-        // Crosshair lines
-        shapeRenderer.line(centerX - crossSize, centerY, centerX + crossSize, centerY);
-        shapeRenderer.line(centerX, centerY - crossSize, centerX, centerY + crossSize);
-
-        shapeRenderer.end();
-    }
-
     private void drawMyBoard() {
-        // Draw grid
-        myGridRenderer.drawGrid();
-        myGridRenderer.drawCoordinateLabels();
-
         // Draw placed ships
         Board myBoard = game.getGameController().getMyBoard();
+        boolean[][] shipGrid = null;
+        int[][] hitGrid = null;
+
         if (myBoard != null) {
-            boolean[][] shipGrid = new boolean[gridSize][gridSize];
+            shipGrid = new boolean[gridSize][gridSize];
             for (int row = 0; row < gridSize; row++) {
                 for (int col = 0; col < gridSize; col++) {
                     Ship ship = myBoard.getShipAt(row, col);
                     shipGrid[row][col] = (ship != null);
                 }
             }
-            myGridRenderer.drawShips(shipGrid);
 
             // Draw hits and misses on my board
-            int[][] hitGrid = buildHitGrid(myBoard);
-            myGridRenderer.drawHitsAndMisses(hitGrid);
+            hitGrid = buildHitGrid(myBoard);
         }
+
+        // Draw grid with textures
+        myGridRenderer.drawGrid(false, shipGrid, hitGrid, Gdx.graphics.getDeltaTime());
+        myGridRenderer.drawCoordinateLabels();
     }
 
     private int[][] buildHitGrid(Board board) {
@@ -370,26 +402,38 @@ public class GameScreen implements Screen {
 
         // Recalculate board dimensions
         gridSize = game.getGameController().getMyBoard().getSize();
-        float padding = 30;
+
+        // Layout constants - MUST MATCH initializeUI()
+        float padding = 40;
+        float borderPadding = 50;
+        float columnPadding = 60;
+        float gridVerticalOffset = 20;
 
         // Tracking board (left column)
-        trackingBoardSize = height * 0.8f;
-        trackingBoardX = padding;
-        trackingBoardY = (height - trackingBoardSize) / 2;
+        trackingBoardSize = height * 0.65f;  // Reduced from 0.8 for more column space
+        trackingBoardX = padding + borderPadding;
+        trackingBoardY = (height - trackingBoardSize) / 2 - gridVerticalOffset;
         trackingGridRenderer.setBounds(trackingBoardX, trackingBoardY, trackingBoardSize, gridSize);
 
         // My board (right column, top)
         myBoardSize = height * 0.35f;
-        myBoardX = width - myBoardSize - padding;
-        myBoardY = height - myBoardSize - padding - 30;
+        myBoardX = width - myBoardSize - padding - borderPadding;
+        myBoardY = height - myBoardSize - padding - borderPadding - 30 - gridVerticalOffset;
         myGridRenderer.setBounds(myBoardX, myBoardY, myBoardSize, gridSize);
 
-        // Reposition info panel (center column, same height as tracking board)
-        float panelX = trackingBoardX + trackingBoardSize + padding;
-        float panelWidth = myBoardX - panelX - padding;
+        // Reposition info panel (center column)
+        float panelX = trackingBoardX + trackingBoardSize + columnPadding;
+        float panelWidth = myBoardX - panelX - columnPadding;
         float panelHeight = trackingBoardSize;
         float panelY = trackingBoardY;
         infoPanel.setPosition(panelX, panelY, panelWidth, panelHeight);
+
+        // Reposition EXIT button
+        if (exitButton != null) {
+            float exitButtonX = myBoardX;
+            float exitButtonY = myBoardY - exitButton.getHeight() - 20;
+            exitButton.setPosition(exitButtonX, exitButtonY);
+        }
     }
 
     @Override
@@ -410,5 +454,7 @@ public class GameScreen implements Screen {
         if (batch != null) batch.dispose();
         if (shapeRenderer != null) shapeRenderer.dispose();
         if (infoPanel != null) infoPanel.dispose();
+        if (trackingGridRenderer != null) trackingGridRenderer.dispose();
+        if (myGridRenderer != null) myGridRenderer.dispose();
     }
 }

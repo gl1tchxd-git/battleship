@@ -1,7 +1,7 @@
 package at.gl1tchxd.battleship.ui;
 
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.scenes.scene2d.Stage;
@@ -15,31 +15,25 @@ import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 public class GameInfoPanel {
     private final Table rootTable;
     private final Table contentTable;
-    private final ScrollPane scrollPane;
     private final Skin skin;
 
     private Label turnLabel;
     private Label statusLabel;
-    private Label[] myShipLabels;
     private Label[] opponentShipLabels;
-    private Image[] myShipImages;
     private Image[] opponentShipImages;
 
     private final String[] shipClassNames = {"Carrier", "Battleship", "Cruiser", "Submarine", "Destroyer"};
     private final int[] shipLengths = {5, 4, 3, 3, 2};
-    private int[] myShipCounts;
-    private int[] myShipsRemaining;
+    // Map ship class index to rank: Carrier=rank-5, Battleship=rank-4, Cruiser=rank-3, Submarine=rank-2, Destroyer=rank-1
+    private final int[] shipRanks = {5, 4, 3, 2, 1};
     private int[] opponentShipCounts;
     private int[] opponentShipsRemaining;
 
-    // Ship color textures
-    private Texture shipAliveTexture;
-    private Texture shipSunkTexture;
+    // Rank textures for ship images
+    private Texture[] rankTextures;
 
     public GameInfoPanel(Skin skin, Stage stage, int[] shipCounts) {
         this.skin = skin;
-        this.myShipCounts = shipCounts.clone();
-        this.myShipsRemaining = shipCounts.clone();
         this.opponentShipCounts = shipCounts.clone();
         this.opponentShipsRemaining = shipCounts.clone();
 
@@ -55,29 +49,18 @@ public class GameInfoPanel {
 
         createUI();
 
-        // Create scroll pane with content
-        scrollPane = new ScrollPane(contentTable, skin);
-        scrollPane.setFadeScrollBars(false);
-        scrollPane.setScrollingDisabled(true, false);
-        rootTable.add(scrollPane).expand().fill();
+        // Add content table directly without scroll pane to avoid weird background
+        rootTable.add(contentTable).expand().fill().top();
 
         stage.addActor(rootTable);
     }
 
     private void createShipTextures() {
-        // Create alive ship texture (green)
-        Pixmap alivePixmap = new Pixmap(40, 10, Pixmap.Format.RGBA8888);
-        alivePixmap.setColor(0.2f, 0.8f, 0.2f, 1f);
-        alivePixmap.fill();
-        shipAliveTexture = new Texture(alivePixmap);
-        alivePixmap.dispose();
-
-        // Create sunk ship texture (red/dark)
-        Pixmap sunkPixmap = new Pixmap(40, 10, Pixmap.Format.RGBA8888);
-        sunkPixmap.setColor(0.5f, 0.2f, 0.2f, 1f);
-        sunkPixmap.fill();
-        shipSunkTexture = new Texture(sunkPixmap);
-        sunkPixmap.dispose();
+        // Load rank textures (rank-1 to rank-5)
+        rankTextures = new Texture[5];
+        for (int i = 0; i < 5; i++) {
+            rankTextures[i] = new Texture(Gdx.files.internal("sprites/shared_rank-" + (i + 1) + ".png"));
+        }
     }
 
     private void createUI() {
@@ -91,28 +74,6 @@ public class GameInfoPanel {
         statusLabel.setColor(Color.CYAN);
         contentTable.add(statusLabel).padBottom(30).row();
 
-        // My ships section
-        contentTable.add(new Label("=== YOUR FLEET ===", skin)).padBottom(15).row();
-        myShipLabels = new Label[5];
-        myShipImages = new Image[5];
-
-        for (int i = 0; i < 5; i++) {
-            Table shipRow = new Table();
-
-            // Ship image (represents ship status)
-            myShipImages[i] = new Image(new TextureRegionDrawable(new TextureRegion(shipAliveTexture)));
-            shipRow.add(myShipImages[i]).width(shipLengths[i] * 10).height(12).padRight(10);
-
-            // Ship class info
-            myShipLabels[i] = new Label(shipClassNames[i] + ": " + myShipsRemaining[i] + "/" + myShipCounts[i], skin);
-            myShipLabels[i].setColor(Color.WHITE);
-            shipRow.add(myShipLabels[i]).expandX().left();
-
-            contentTable.add(shipRow).padBottom(10).left().row();
-        }
-
-        contentTable.add(new Label("", skin)).padBottom(20).row(); // Spacer
-
         // Opponent ships section
         contentTable.add(new Label("=== ENEMY FLEET ===", skin)).padBottom(15).row();
         opponentShipLabels = new Label[5];
@@ -121,9 +82,11 @@ public class GameInfoPanel {
         for (int i = 0; i < 5; i++) {
             Table shipRow = new Table();
 
-            // Ship image (represents ship status)
-            opponentShipImages[i] = new Image(new TextureRegionDrawable(new TextureRegion(shipAliveTexture)));
-            shipRow.add(opponentShipImages[i]).width(shipLengths[i] * 10).height(12).padRight(10);
+            // Ship image using rank texture
+            int rankIndex = shipRanks[i] - 1;
+            opponentShipImages[i] = new Image(new TextureRegionDrawable(new TextureRegion(rankTextures[rankIndex])));
+            // Scale up the rank images
+            shipRow.add(opponentShipImages[i]).size(48, 48).padRight(10);
 
             // Ship class info
             opponentShipLabels[i] = new Label(shipClassNames[i] + ": " + opponentShipsRemaining[i] + "/" + opponentShipCounts[i], skin);
@@ -157,27 +120,13 @@ public class GameInfoPanel {
 
     /**
      * Update my ship counts.
+     * Note: MY FLEET section was removed, this method is now a no-op.
      * @param shipClass Ship class index (0-4)
      * @param remaining Ships still alive
      * @param total Total ships of this class
      */
     public void updateMyShipCount(int shipClass, int remaining, int total) {
-        if (shipClass >= 0 && shipClass < 5) {
-            myShipsRemaining[shipClass] = remaining;
-            myShipCounts[shipClass] = total;
-            myShipLabels[shipClass].setText(shipClassNames[shipClass] + ": " + remaining + "/" + total);
-
-            // Update image color based on remaining ships
-            if (remaining == 0) {
-                myShipLabels[shipClass].setColor(Color.RED);
-                myShipImages[shipClass].setDrawable(new TextureRegionDrawable(new TextureRegion(shipSunkTexture)));
-            } else if (remaining < total) {
-                myShipLabels[shipClass].setColor(Color.ORANGE);
-            } else {
-                myShipLabels[shipClass].setColor(Color.WHITE);
-                myShipImages[shipClass].setDrawable(new TextureRegionDrawable(new TextureRegion(shipAliveTexture)));
-            }
-        }
+        // MY FLEET section removed - no action needed
     }
 
     /**
@@ -192,15 +141,16 @@ public class GameInfoPanel {
             opponentShipCounts[shipClass] = total;
             opponentShipLabels[shipClass].setText(shipClassNames[shipClass] + ": " + remaining + "/" + total);
 
-            // Update image color based on remaining ships
+            // Update label and image color based on remaining ships
             if (remaining == 0) {
                 opponentShipLabels[shipClass].setColor(Color.RED);
-                opponentShipImages[shipClass].setDrawable(new TextureRegionDrawable(new TextureRegion(shipSunkTexture)));
+                opponentShipImages[shipClass].setColor(0.5f, 0.2f, 0.2f, 1f); // Dark red tint for sunk
             } else if (remaining < total) {
-                opponentShipLabels[shipClass].setColor(Color.ORANGE);
+                opponentShipLabels[shipClass].setColor(Color.YELLOW);
+                opponentShipImages[shipClass].setColor(1f, 0.8f, 0.2f, 1f); // Yellow-orange tint for damaged
             } else {
                 opponentShipLabels[shipClass].setColor(Color.WHITE);
-                opponentShipImages[shipClass].setDrawable(new TextureRegionDrawable(new TextureRegion(shipAliveTexture)));
+                opponentShipImages[shipClass].setColor(Color.WHITE); // Normal color
             }
         }
     }
@@ -238,16 +188,18 @@ public class GameInfoPanel {
 
     /**
      * Update all my ship counts based on game state.
+     * Note: MY FLEET section was removed, this method is now a no-op.
      */
     public void updateMyFleetStatus(int[] alivePerClass, int[] totalPerClass) {
-        for (int i = 0; i < 5; i++) {
-            updateMyShipCount(i, alivePerClass[i], totalPerClass[i]);
-        }
+        // MY FLEET section removed - no action needed
     }
 
     public void dispose() {
-        if (shipAliveTexture != null) shipAliveTexture.dispose();
-        if (shipSunkTexture != null) shipSunkTexture.dispose();
+        if (rankTextures != null) {
+            for (Texture texture : rankTextures) {
+                if (texture != null) texture.dispose();
+            }
+        }
     }
 }
 

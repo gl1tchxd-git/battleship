@@ -10,4 +10,21 @@ application {
 
 jar {
     archiveBaseName = 'battleship-console'
+    manifest {
+        attributes 'Main-Class': 'at.gl1tchxd.battleship.ConsoleLauncher'
+    }
+}
+
+// Create a fat JAR with all dependencies
+tasks.register('fatJar', Jar) {
+    archiveBaseName = 'battleship-console'
+    archiveClassifier = 'all'
+    manifest {
+        attributes 'Main-Class': 'at.gl1tchxd.battleship.ConsoleLauncher'
+    }
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+    with jar
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }

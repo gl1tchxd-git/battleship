@@ -14,7 +14,10 @@ import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
+import com.badlogic.gdx.scenes.scene2d.ui.ImageTextButton;
+import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 
 public class PlacementScreen implements Screen {
@@ -163,9 +166,29 @@ public class PlacementScreen implements Screen {
             public void onReset() {
                 handleReset();
             }
+
+            @Override
+            public void onExit() {
+                exitToMainMenu();
+            }
         });
 
+
         uiInitialized = true;
+    }
+
+    private void exitToMainMenu() {
+        // Clean up network connections
+        if (game.getNetworkController() != null) {
+            if (game.getNetworkController().isHost()) {
+                game.getNetworkController().stopHosting();
+            } else {
+                game.getNetworkController().stopJoining();
+            }
+        }
+
+        // Return to main menu
+        game.setScreen(new MainMenuScreen(game));
     }
 
     private boolean isGameReady() {
@@ -257,17 +280,30 @@ public class PlacementScreen implements Screen {
 
         handleInput();
 
-        gridRenderer.drawGrid();
+        // Get placed ships
+        boolean[][] shipGrid = null;
+        Board board = game.getGameController().getMyBoard();
+        if (board != null) {
+            shipGrid = new boolean[gridSize][gridSize];
+            for (int row = 0; row < gridSize; row++) {
+                for (int col = 0; col < gridSize; col++) {
+                    Ship ship = board.getShipAt(row, col);
+                    shipGrid[row][col] = (ship != null);
+                }
+            }
+        }
+
+        // Draw grid with placed ships (isTrackingBoard = false, no hitGrid during placement)
+        gridRenderer.drawGrid(false, shipGrid, null, delta);
         gridRenderer.drawCoordinateLabels();
 
-        // Draw placed ships
-        drawPlacedShips();
 
         // Draw hover preview on top of ships
         if (hoveredRow >= 0 && hoveredCol >= 0 && selectedShipClass < shipLengths.length) {
             int shipLength = shipLengths[selectedShipClass];
             boolean canPlace = checkCanPlace(hoveredRow, hoveredCol, shipLength, horizontalPlacement);
-            gridRenderer.drawShipPreview(hoveredRow, hoveredCol, shipLength, horizontalPlacement, canPlace);
+            boolean placementConfirmed = game.getGameController().isPlacementComplete();
+            gridRenderer.drawShipPreview(hoveredRow, hoveredCol, shipLength, horizontalPlacement, canPlace, placementConfirmed);
         }
 
         stage.act(delta);
@@ -540,20 +576,6 @@ public class PlacementScreen implements Screen {
         return game.getGameController().getMyBoard().canPlace(ship, row, col, horizontal);
     }
 
-     private void drawPlacedShips() {
-         Board board = game.getGameController().getMyBoard();
-         if (board == null) return;
-
-         boolean[][] shipGrid = new boolean[gridSize][gridSize];
-         for (int row = 0; row < gridSize; row++) {
-             for (int col = 0; col < gridSize; col++) {
-                 Ship ship = board.getShipAt(row, col);
-                 shipGrid[row][col] = (ship != null);
-             }
-         }
-
-         gridRenderer.drawShips(shipGrid);
-     }
 
     @Override
     public void resize(int width, int height) {
@@ -630,5 +652,7 @@ public class PlacementScreen implements Screen {
         if (batch != null) batch.dispose();
         if (shapeRenderer != null) shapeRenderer.dispose();
         if (background != null) background.dispose();
+        if (gridRenderer != null) gridRenderer.dispose();
+        if (infoPanel != null) infoPanel.dispose();
     }
 }
