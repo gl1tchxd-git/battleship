@@ -18,6 +18,7 @@ public class NetworkController {
     private boolean handshakeComplete = false;
     private ConnectionCallback connectionCallback;
     private DisconnectionCallback disconnectionCallback;
+    private AttackSoundCallback attackSoundCallback;
 
     public interface ConnectionCallback {
         void onClientConnected();
@@ -30,6 +31,13 @@ public class NetworkController {
      */
     public interface DisconnectionCallback {
         void onDisconnected(boolean opponentDisconnected);
+    }
+
+    /**
+     * Called when an attack result should play a sound.
+     */
+    public interface AttackSoundCallback {
+        void onAttackSound(boolean hit);
     }
 
     public NetworkController(GameController gameController) {
@@ -127,6 +135,10 @@ public class NetworkController {
 
     public void setDisconnectionCallback(DisconnectionCallback callback) {
         this.disconnectionCallback = callback;
+    }
+
+    public void setAttackSoundCallback(AttackSoundCallback callback) {
+        this.attackSoundCallback = callback;
     }
 
     private void onOpponentDisconnected(boolean opponentDisconnected) {
@@ -305,6 +317,11 @@ public class NetworkController {
         boolean isHit = (boolean) message.data.get("isHit");
 
         System.out.println("Received attack result for (" + row + ", " + col + "): hit=" + isHit + ", gameWon=" + isGameWon);
+
+        // Play sound for my attack result (both players hear hit/miss)
+        if (attackSoundCallback != null) {
+            attackSoundCallback.onAttackSound(isHit);
+        }
 
         if (isGameWon) {
             gameController.setGamePhase(GamePhase.GAME_WON);

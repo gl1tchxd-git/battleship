@@ -119,7 +119,7 @@ public class PlacementScreen implements Screen {
 
         float panelX = boardX + boardSize + 30;
         float panelMaxHeight = boardSize; // Match board height
-        infoPanel = new PlacementInfoPanel(game.getSkin(), stage, shipClassNames, shipLengths, shipCounts);
+        infoPanel = new PlacementInfoPanel(game, game.getSkin(), stage, shipClassNames, shipLengths, shipCounts);
 
         // Add the two tables to the stage so we can position them in columns
         stage.addActor(infoPanel.getShipListTable());

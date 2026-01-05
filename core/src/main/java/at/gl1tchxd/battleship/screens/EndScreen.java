@@ -35,6 +35,13 @@ public class EndScreen implements Screen {
 
     @Override
     public void show() {
+        // Play appropriate sound based on win/loss
+        if (won) {
+            game.playGameWonSound();
+        } else {
+            game.playGameLostSound();
+        }
+
         stage = new Stage(new ScreenViewport());
         batch = new SpriteBatch();
 
@@ -60,6 +67,7 @@ public class EndScreen implements Screen {
         continueButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
+                game.playClickSound();
                 returnToMainMenu();
             }
         });

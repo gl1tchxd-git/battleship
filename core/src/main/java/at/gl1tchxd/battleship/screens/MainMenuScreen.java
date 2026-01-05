@@ -41,6 +41,7 @@ public class MainMenuScreen implements Screen {
         startButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
+                game.playClickSound();
                 game.setScreen(new ConnectScreen(game));
             }
         });

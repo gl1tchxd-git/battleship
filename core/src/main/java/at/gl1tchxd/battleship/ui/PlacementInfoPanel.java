@@ -1,5 +1,6 @@
 package at.gl1tchxd.battleship.ui;
 
+import at.gl1tchxd.battleship.BattleshipGame;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
@@ -20,6 +21,7 @@ public class PlacementInfoPanel {
     // New controls table for status labels and buttons
     private final Table controlsTable;
     private final Skin skin;
+    private final BattleshipGame game;
 
     private Label opponentStatusLabel;
     private Label currentShipLabel;
@@ -47,7 +49,8 @@ public class PlacementInfoPanel {
         void onExit();
     }
 
-    public PlacementInfoPanel(Skin skin, Stage stage, String[] shipClassNames, int[] shipLengths, int[] shipCounts) {
+    public PlacementInfoPanel(BattleshipGame game, Skin skin, Stage stage, String[] shipClassNames, int[] shipLengths, int[] shipCounts) {
+        this.game = game;
         this.skin = skin;
 
         // Content table will now hold the ship-class list (non-scrollable)
@@ -129,6 +132,7 @@ public class PlacementInfoPanel {
         autoPlaceButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
+                game.playClickSound();
                 if (callback != null) {
                     callback.onAutoPlace();
                 }
@@ -140,6 +144,7 @@ public class PlacementInfoPanel {
         resetButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
+                game.playClickSound();
                 if (callback != null) {
                     callback.onReset();
                 }
@@ -152,6 +157,7 @@ public class PlacementInfoPanel {
         confirmButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
+                game.playClickSound();
                 if (callback != null && !confirmButton.isDisabled()) {
                     callback.onConfirmPlacement();
                 }
@@ -163,6 +169,7 @@ public class PlacementInfoPanel {
         exitButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
+                game.playClickSound();
                 if (callback != null) {
                     callback.onExit();
                 }

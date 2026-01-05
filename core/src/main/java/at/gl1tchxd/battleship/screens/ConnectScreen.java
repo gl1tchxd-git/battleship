@@ -39,7 +39,7 @@ public class ConnectScreen implements Screen {
             background = new Texture(Gdx.files.internal("sprites/connect_background.png"));
         }
         if (connectHost == null) {
-            connectHost = new ConnectHost(game.getNetworkController(), game.getSkin(), stage);
+            connectHost = new ConnectHost(game, game.getNetworkController(), game.getSkin(), stage);
             connectHost.setCallback(new ConnectHost.HostCallback() {
                 @Override
                 public void onHostSuccess(int port, int boardSize, int[] shipConfig) {
@@ -56,7 +56,7 @@ public class ConnectScreen implements Screen {
             });
         }
         if (connectClient == null) {
-            connectClient = new ConnectClient(game.getNetworkController(), game.getSkin(), stage);
+            connectClient = new ConnectClient(game, game.getNetworkController(), game.getSkin(), stage);
             connectClient.setCallback(new ConnectClient.ClientCallback() {
                 @Override
                 public void onConnectSuccess(String host, int port) {

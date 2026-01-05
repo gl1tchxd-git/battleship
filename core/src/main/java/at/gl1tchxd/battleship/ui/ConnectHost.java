@@ -1,5 +1,6 @@
 package at.gl1tchxd.battleship.ui;
 
+import at.gl1tchxd.battleship.BattleshipGame;
 import at.gl1tchxd.battleship.network.NetworkController;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Color;
@@ -17,6 +18,7 @@ public class ConnectHost {
     private final Stage stage;
     private Table table;
     private Skin skin;
+    private final BattleshipGame game;
 
     private TextField portField;
     private TextField boardSizeField;
@@ -37,7 +39,8 @@ public class ConnectHost {
         void onClientConnected();
     }
 
-    public ConnectHost(NetworkController networkController, Skin skin, Stage stage) {
+    public ConnectHost(BattleshipGame game, NetworkController networkController, Skin skin, Stage stage) {
+        this.game = game;
         this.networkController = networkController;
         this.stage = stage;
         this.skin = skin;
@@ -94,6 +97,7 @@ public class ConnectHost {
         hostButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
+                game.playClickSound();
                 handleHostClick();
             }
         });

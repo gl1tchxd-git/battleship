@@ -5,6 +5,7 @@ import at.gl1tchxd.battleship.network.NetworkController;
 import at.gl1tchxd.battleship.screens.MainMenuScreen;
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
@@ -22,12 +23,27 @@ public class BattleshipGame extends Game {
     private GameController gameController;
     private NetworkController networkController;
 
+    // Sound effects
+    private Sound clickSound;
+    private Sound hitSound;
+    private Sound missSound;
+    private Sound gameWonSound;
+    private Sound gameLostSound;
+
     @Override
     public void create() {
         this.batch = new SpriteBatch();
         this.viewport = new ScreenViewport();
         this.skin = new Skin();
         createDefaultSkin();
+
+        // Load sound effects
+        this.clickSound = Gdx.audio.newSound(Gdx.files.internal("sounds/click.mp3"));
+        this.hitSound = Gdx.audio.newSound(Gdx.files.internal("sounds/hit.mp3"));
+        this.missSound = Gdx.audio.newSound(Gdx.files.internal("sounds/miss.mp3"));
+        this.gameWonSound = Gdx.audio.newSound(Gdx.files.internal("sounds/game-won.mp3"));
+        this.gameLostSound = Gdx.audio.newSound(Gdx.files.internal("sounds/game-lost.mp3"));
+
         this.gameController = new GameController();
         this.networkController = new NetworkController(gameController);
         this.setScreen(new MainMenuScreen(this));
@@ -58,6 +74,21 @@ public class BattleshipGame extends Game {
         if (skin != null) {
             skin.dispose();
         }
+        if (clickSound != null) {
+            clickSound.dispose();
+        }
+        if (hitSound != null) {
+            hitSound.dispose();
+        }
+        if (missSound != null) {
+            missSound.dispose();
+        }
+        if (gameWonSound != null) {
+            gameWonSound.dispose();
+        }
+        if (gameLostSound != null) {
+            gameLostSound.dispose();
+        }
     }
 
     public GameController getGameController() {
@@ -70,6 +101,37 @@ public class BattleshipGame extends Game {
 
     public Skin getSkin() {
         return skin;
+    }
+
+    // Sound effect methods
+    public void playClickSound() {
+        if (clickSound != null) {
+            clickSound.play();
+        }
+    }
+
+    public void playHitSound() {
+        if (hitSound != null) {
+            hitSound.play();
+        }
+    }
+
+    public void playMissSound() {
+        if (missSound != null) {
+            missSound.play();
+        }
+    }
+
+    public void playGameWonSound() {
+        if (gameWonSound != null) {
+            gameWonSound.play();
+        }
+    }
+
+    public void playGameLostSound() {
+        if (gameLostSound != null) {
+            gameLostSound.play();
+        }
     }
 
     private void createDefaultSkin() {

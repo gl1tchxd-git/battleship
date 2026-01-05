@@ -78,6 +78,18 @@ public class GameScreen implements Screen {
                     // player view the victory/defeat screen and press ESC/Enter to return.
                 }
             });
+
+            // Register attack sound callback to play hit/miss sounds
+            game.getNetworkController().setAttackSoundCallback(new NetworkController.AttackSoundCallback() {
+                @Override
+                public void onAttackSound(boolean hit) {
+                    if (hit) {
+                        game.playHitSound();
+                    } else {
+                        game.playMissSound();
+                    }
+                }
+            });
         }
 
         initializeUI();
@@ -130,6 +142,7 @@ public class GameScreen implements Screen {
         exitButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
+                game.playClickSound();
                 exitToMainMenu();
             }
         });

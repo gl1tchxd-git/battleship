@@ -1,5 +1,6 @@
 package at.gl1tchxd.battleship.ui;
 
+import at.gl1tchxd.battleship.BattleshipGame;
 import at.gl1tchxd.battleship.network.NetworkController;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
@@ -11,6 +12,7 @@ public class ConnectClient {
     private final Stage stage;
     private Table table;
     private Skin skin;
+    private final BattleshipGame game;
 
     private TextField hostField;
     private TextField portField;
@@ -29,7 +31,8 @@ public class ConnectClient {
         void onConnectError(String errorMessage);
     }
 
-    public ConnectClient(NetworkController networkController, Skin skin, Stage stage) {
+    public ConnectClient(BattleshipGame game, NetworkController networkController, Skin skin, Stage stage) {
+        this.game = game;
         this.networkController = networkController;
         this.stage = stage;
         this.skin = skin;
@@ -75,6 +78,7 @@ public class ConnectClient {
         connectButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
+                game.playClickSound();
                 handleConnectClick();
             }
         });
