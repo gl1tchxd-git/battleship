@@ -49,7 +49,7 @@ public class PlacementScreen implements Screen {
     private final int[] shipPlaced = {0, 0, 0, 0, 0};
     private final String[] shipClassNames = {"Carrier", "Battleship", "Cruiser", "Submarine", "Destroyer"};
     private final int[] shipLengths = {5, 4, 3, 3, 2};
-    private final boolean[][] shipInstancePlaced = new boolean[5][10]; // Track which specific ships are placed
+    private final boolean[][] shipInstancePlaced = new boolean[5][50]; // Track which specific ships are placed
     private int totalShipCount; // Total number of ship instances across all classes
     private boolean configLoaded = false; // Track if ship config has been loaded from game
 

@@ -184,6 +184,14 @@ public class BattleshipGame extends Game {
         textFieldStyle.background = underlineDrawable;
         textFieldStyle.focusedBackground = focusedDrawable;
 
+        // Create a simple cursor (1px wide vertical line)
+        com.badlogic.gdx.graphics.Pixmap cursorPixmap = new com.badlogic.gdx.graphics.Pixmap(2, (int)font.getLineHeight(), com.badlogic.gdx.graphics.Pixmap.Format.RGBA8888);
+        cursorPixmap.setColor(85 / 255f, 87 / 255f, 87 / 255f, 1f);
+        cursorPixmap.fill();
+        com.badlogic.gdx.graphics.Texture cursorTexture = new com.badlogic.gdx.graphics.Texture(cursorPixmap);
+        cursorPixmap.dispose();
+        textFieldStyle.cursor = new TextureRegionDrawable(new TextureRegion(cursorTexture));
+
         skin.add("default", textFieldStyle);
 
         ImageTextButton.ImageTextButtonStyle imageButtonStyle = new ImageTextButton.ImageTextButtonStyle();

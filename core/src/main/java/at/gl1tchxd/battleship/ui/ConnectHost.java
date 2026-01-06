@@ -71,7 +71,7 @@ public class ConnectHost {
         topSection.add(portField).width(halfWidth).left().padBottom(10).row();
 
         // Initialize ship config fields (5 ship types: 5, 4, 3, 3, 2 lengths)
-        Label shipConfigLabel = new Label("Ship Lengths:", skin);
+        Label shipConfigLabel = new Label("Ship Amount:", skin);
         shipConfigLabel.setAlignment(com.badlogic.gdx.utils.Align.center);
         topSection.add(shipConfigLabel).colspan(2).center().padBottom(5).row();
 
