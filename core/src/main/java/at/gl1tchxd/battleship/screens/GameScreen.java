@@ -31,8 +31,8 @@ public class GameScreen implements Screen {
     private Texture background;
     private ShapeRenderer shapeRenderer;
 
-    private GridRenderer trackingGridRenderer; // Opponent's board (for attacking)
-    private GridRenderer myGridRenderer;       // Own board (showing ships & hits)
+    private GridRenderer trackingGridRenderer;
+    private GridRenderer myGridRenderer;
     private GameInfoPanel infoPanel;
     private ImageTextButton exitButton;
 
@@ -49,7 +49,7 @@ public class GameScreen implements Screen {
 
     private int[] shipCounts = {1, 1, 1, 1, 1};
 
-    private static final float END_SCREEN_DELAY = 1.0f; // 1 second delay
+    private static final float END_SCREEN_DELAY = 1.0f;
     private float endGameTimer = 0f;
     private boolean gameEnded = false;
     private boolean gameWon = false;
@@ -67,19 +67,14 @@ public class GameScreen implements Screen {
 
         Gdx.input.setInputProcessor(stage);
 
-        // Register a simple disconnection callback to ensure UI updates if connection is severed
         if (game.getNetworkController() != null) {
             game.getNetworkController().setDisconnectionCallback(new NetworkController.DisconnectionCallback() {
                 @Override
                 public void onDisconnected(boolean opponentDisconnected) {
-                    // If the disconnection occurred during battle, GameController phase was already set
-                    // to GAME_WON or GAME_LOST in NetworkController; we just ensure the UI reflects it.
-                    // Optionally we could schedule a return to ConnectScreen here, but we'll let the
-                    // player view the victory/defeat screen and press ESC/Enter to return.
+                    //
                 }
             });
 
-            // Register attack sound callback to play hit/miss sounds
             game.getNetworkController().setAttackSoundCallback(new NetworkController.AttackSoundCallback() {
                 @Override
                 public void onAttackSound(boolean hit) {
@@ -103,19 +98,17 @@ public class GameScreen implements Screen {
 
         gridSize = game.getGameController().getMyBoard().getSize();
 
-        // Load ship config from game
         int[] config = game.getGameController().getGame().getShipConfig();
         if (config != null && config.length == 5) {
             shipCounts = config.clone();
         }
 
-        // Layout constants - ADJUST THESE to change spacing
-        float padding = 40;           // Base padding from edges
-        float borderPadding = 50;     // Extra padding for integrated border
-        float columnPadding = 60;     // Padding between columns
-        float gridVerticalOffset = 20; // Move grids down (positive) or up (negative)
+        float padding = 40;
+        float borderPadding = 50;
+        float columnPadding = 60;
+        float gridVerticalOffset = 20;
 
-        trackingBoardSize = screenHeight * 0.65f;  // Reduced from 0.8 for more column space
+        trackingBoardSize = screenHeight * 0.65f;
         trackingBoardX = padding + borderPadding;
         trackingBoardY = (screenHeight - trackingBoardSize) / 2 - gridVerticalOffset;
 
@@ -137,7 +130,6 @@ public class GameScreen implements Screen {
         infoPanel = new GameInfoPanel(game.getSkin(), stage, shipCounts);
         infoPanel.setPosition(panelX, panelY, panelWidth, panelHeight);
 
-        // Create EXIT button - positioned directly, not in a table
         exitButton = new ImageTextButton("EXIT", game.getSkin());
         exitButton.addListener(new ClickListener() {
             @Override
@@ -147,24 +139,20 @@ public class GameScreen implements Screen {
             }
         });
 
-        // Scale button to match other buttons (0.5x)
         float buttonWidth = exitButton.getWidth() * 0.5f;
         float buttonHeight = exitButton.getHeight() * 0.5f;
         exitButton.setSize(buttonWidth, buttonHeight);
 
-        // Position button below mini board, aligned to left edge of mini board
         float exitButtonX = myBoardX;
-        float exitButtonY = myBoardY - buttonHeight - 20; // 20px gap below mini board
+        float exitButtonY = myBoardY - buttonHeight - 20;
         exitButton.setPosition(exitButtonX, exitButtonY);
 
         stage.addActor(exitButton);
     }
 
     private void exitToMainMenu() {
-        // Reset game phase to prevent win/loss trigger on disconnect
         game.getGameController().resetGame();
 
-        // Clean up network connections
         if (game.getNetworkController() != null) {
             if (game.getNetworkController().isHost()) {
                 game.getNetworkController().stopHosting();
@@ -173,7 +161,6 @@ public class GameScreen implements Screen {
             }
         }
 
-        // Return to main menu
         game.setScreen(new MainMenuScreen(game));
     }
 
@@ -205,19 +192,19 @@ public class GameScreen implements Screen {
         stage.act(delta);
         stage.draw();
 
-        // If the game has ended (win or loss), wait for delay then transition to EndScreen
+
         GamePhase phase = game.getGameController().getGamePhase();
         if (phase == GamePhase.GAME_WON || phase == GamePhase.GAME_LOST) {
             if (!gameEnded) {
-                // Game just ended, start the timer
+
                 gameEnded = true;
                 gameWon = (phase == GamePhase.GAME_WON);
                 endGameTimer = 0f;
             } else {
-                // Game ended, count down
+
                 endGameTimer += delta;
                 if (endGameTimer >= END_SCREEN_DELAY) {
-                    // Delay complete, transition to EndScreen
+
                     game.setScreen(new EndScreen(game, gameWon));
                 }
             }
@@ -228,13 +215,11 @@ public class GameScreen implements Screen {
         int mouseX = Gdx.input.getX();
         int mouseY = Gdx.graphics.getHeight() - Gdx.input.getY();
 
-        // Check if hovering over tracking board (for attacking)
         int[] gridCoords = trackingGridRenderer.screenToGrid(mouseX, mouseY);
         if (gridCoords != null) {
             hoveredRow = gridCoords[0];
             hoveredCol = gridCoords[1];
 
-            // Left click to attack
             if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
                 performAttack(hoveredRow, hoveredCol);
             }
@@ -247,7 +232,6 @@ public class GameScreen implements Screen {
     private void performAttack(int row, int col) {
         if (!game.getGameController().isMyTurn()) return;
 
-        // Send attack to opponent via network (defensive null-check)
         NetworkController nc = game.getNetworkController();
         if (nc != null) {
             nc.sendAttack(row, col);
@@ -255,16 +239,10 @@ public class GameScreen implements Screen {
     }
 
     private void updateUI() {
-        // Update turn indicator
         infoPanel.setMyTurn(game.getGameController().isMyTurn());
-
-        // Update my fleet status
         updateMyFleetStatus();
-
-        // Update opponent fleet status from tracking board
         updateOpponentFleetStatus();
 
-        // Update status based on game phase
         GamePhase phase = game.getGameController().getGamePhase();
         switch (phase) {
             case BATTLE:
@@ -309,7 +287,6 @@ public class GameScreen implements Screen {
     private void updateOpponentFleetStatus() {
         Board trackingBoard = game.getGameController().getTrackingBoard();
         if (trackingBoard == null || !trackingBoard.isTrackingMode()) {
-            // No tracking board yet, show initial counts from ship config
             for (int i = 0; i < 5; i++) {
                 infoPanel.updateOpponentShipCount(i, shipCounts[i], shipCounts[i]);
             }
@@ -320,13 +297,11 @@ public class GameScreen implements Screen {
         if (sunkShips != null) {
             for (int i = 0; i < 5 && i < sunkShips.length; i++) {
                 int sunk = sunkShips[i][0];
-                // Use shipCounts as total if tracking board total is 0 (not yet initialized)
                 int total = sunkShips[i][1] > 0 ? sunkShips[i][1] : shipCounts[i];
                 int remaining = total - sunk;
                 infoPanel.updateOpponentShipCount(i, remaining, total);
             }
         } else {
-            // No sunk data yet, show initial counts from ship config
             for (int i = 0; i < 5; i++) {
                 infoPanel.updateOpponentShipCount(i, shipCounts[i], shipCounts[i]);
             }
@@ -334,25 +309,21 @@ public class GameScreen implements Screen {
     }
 
     private void drawTrackingBoard() {
-        // Get tracking board hits/misses
         Board trackingBoard = game.getGameController().getTrackingBoard();
         int[][] hitGrid = null;
         if (trackingBoard != null) {
             hitGrid = buildHitGrid(trackingBoard);
         }
 
-        // Draw grid with textures
         trackingGridRenderer.drawGrid(true, null, hitGrid, Gdx.graphics.getDeltaTime());
         trackingGridRenderer.drawCoordinateLabels();
 
-        // Draw hover highlight for attack targeting
         if (hoveredRow >= 0 && hoveredCol >= 0 && game.getGameController().isMyTurn()) {
             trackingGridRenderer.drawTargetingHighlight(hoveredRow, hoveredCol);
         }
     }
 
     private void drawMyBoard() {
-        // Draw placed ships
         Board myBoard = game.getGameController().getMyBoard();
         boolean[][] shipGrid = null;
         int[][] hitGrid = null;
@@ -366,11 +337,9 @@ public class GameScreen implements Screen {
                 }
             }
 
-            // Draw hits and misses on my board
             hitGrid = buildHitGrid(myBoard);
         }
 
-        // Draw grid with textures
         myGridRenderer.drawGrid(false, shipGrid, hitGrid, Gdx.graphics.getDeltaTime());
         myGridRenderer.drawCoordinateLabels();
     }
@@ -398,11 +367,9 @@ public class GameScreen implements Screen {
     private void drawBoardLabels() {
         batch.begin();
 
-        // Label for tracking board
         game.getSkin().getFont("default").draw(batch, "ENEMY WATERS (Attack Here)",
             trackingBoardX, trackingBoardY + trackingBoardSize + 40);
 
-        // Label for my board
         game.getSkin().getFont("default").draw(batch, "YOUR FLEET",
             myBoardX, myBoardY + myBoardSize + 40);
 
@@ -413,35 +380,29 @@ public class GameScreen implements Screen {
     public void resize(int width, int height) {
         stage.getViewport().update(width, height, true);
 
-        // Recalculate board dimensions
         gridSize = game.getGameController().getMyBoard().getSize();
 
-        // Layout constants - MUST MATCH initializeUI()
         float padding = 40;
         float borderPadding = 50;
         float columnPadding = 60;
         float gridVerticalOffset = 20;
 
-        // Tracking board (left column)
-        trackingBoardSize = height * 0.65f;  // Reduced from 0.8 for more column space
+        trackingBoardSize = height * 0.65f;
         trackingBoardX = padding + borderPadding;
         trackingBoardY = (height - trackingBoardSize) / 2 - gridVerticalOffset;
         trackingGridRenderer.setBounds(trackingBoardX, trackingBoardY, trackingBoardSize, gridSize);
 
-        // My board (right column, top)
         myBoardSize = height * 0.35f;
         myBoardX = width - myBoardSize - padding - borderPadding;
         myBoardY = height - myBoardSize - padding - borderPadding - 30 - gridVerticalOffset;
         myGridRenderer.setBounds(myBoardX, myBoardY, myBoardSize, gridSize);
 
-        // Reposition info panel (center column)
         float panelX = trackingBoardX + trackingBoardSize + columnPadding;
         float panelWidth = myBoardX - panelX - columnPadding;
         float panelHeight = trackingBoardSize;
         float panelY = trackingBoardY;
         infoPanel.setPosition(panelX, panelY, panelWidth, panelHeight);
 
-        // Reposition EXIT button
         if (exitButton != null) {
             float exitButtonX = myBoardX;
             float exitButtonY = myBoardY - exitButton.getHeight() - 20;
@@ -451,14 +412,17 @@ public class GameScreen implements Screen {
 
     @Override
     public void pause() {
+        //
     }
 
     @Override
     public void resume() {
+        //
     }
 
     @Override
     public void hide() {
+        //
     }
 
     @Override

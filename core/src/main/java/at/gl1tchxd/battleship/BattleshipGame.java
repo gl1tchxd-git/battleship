@@ -23,7 +23,6 @@ public class BattleshipGame extends Game {
     private GameController gameController;
     private NetworkController networkController;
 
-    // Sound effects
     private Sound clickSound;
     private Sound hitSound;
     private Sound missSound;
@@ -37,7 +36,6 @@ public class BattleshipGame extends Game {
         this.skin = new Skin();
         createDefaultSkin();
 
-        // Load sound effects
         this.clickSound = Gdx.audio.newSound(Gdx.files.internal("sounds/click.mp3"));
         this.hitSound = Gdx.audio.newSound(Gdx.files.internal("sounds/hit.mp3"));
         this.missSound = Gdx.audio.newSound(Gdx.files.internal("sounds/miss.mp3"));
@@ -103,7 +101,6 @@ public class BattleshipGame extends Game {
         return skin;
     }
 
-    // Sound effect methods
     public void playClickSound() {
         if (clickSound != null) {
             clickSound.play();
@@ -184,7 +181,6 @@ public class BattleshipGame extends Game {
         textFieldStyle.background = underlineDrawable;
         textFieldStyle.focusedBackground = focusedDrawable;
 
-        // Create a simple cursor (1px wide vertical line)
         com.badlogic.gdx.graphics.Pixmap cursorPixmap = new com.badlogic.gdx.graphics.Pixmap(2, (int)font.getLineHeight(), com.badlogic.gdx.graphics.Pixmap.Format.RGBA8888);
         cursorPixmap.setColor(85 / 255f, 87 / 255f, 87 / 255f, 1f);
         cursorPixmap.fill();
@@ -207,7 +203,6 @@ public class BattleshipGame extends Game {
         scrollPaneStyle.vScrollKnob = skin.newDrawable("white", new Color(0.5f, 0.5f, 0.5f, 0.9f));
         skin.add("default", scrollPaneStyle);
 
-        // dispose font generator (fonts/textures are still in use)
         fontGen.dispose();
     }
 }

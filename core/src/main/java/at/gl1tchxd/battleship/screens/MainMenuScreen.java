@@ -1,4 +1,4 @@
-// Java
+
 package at.gl1tchxd.battleship.screens;
 
 import at.gl1tchxd.battleship.BattleshipGame;
@@ -80,7 +80,7 @@ public class MainMenuScreen implements Screen {
 
     @Override
     public void pause() {
-        //
+
     }
 
     @Override

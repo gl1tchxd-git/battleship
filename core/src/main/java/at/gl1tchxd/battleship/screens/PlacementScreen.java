@@ -27,31 +27,27 @@ public class PlacementScreen implements Screen {
     private SpriteBatch batch;
     private ShapeRenderer shapeRenderer;
 
-    // Helper classes
     private GridRenderer gridRenderer;
     private PlacementInfoPanel infoPanel;
 
-    // Board positioning
     private float boardX;
     private float boardY;
     private float boardSize;
     private int gridSize;
 
-    // Ship selection and placement
     private int selectedShipClass = 0;
     private int selectedShipIndex = 0;
     private boolean horizontalPlacement = true;
     private int hoveredRow = -1;
     private int hoveredCol = -1;
 
-    // Ship config tracking
     private final int[] shipCounts = {1, 1, 1, 1, 1};
     private final int[] shipPlaced = {0, 0, 0, 0, 0};
     private final String[] shipClassNames = {"Carrier", "Battleship", "Cruiser", "Submarine", "Destroyer"};
     private final int[] shipLengths = {5, 4, 3, 3, 2};
-    private final boolean[][] shipInstancePlaced = new boolean[5][50]; // Track which specific ships are placed
-    private int totalShipCount; // Total number of ship instances across all classes
-    private boolean configLoaded = false; // Track if ship config has been loaded from game
+    private final boolean[][] shipInstancePlaced = new boolean[5][50];
+    private int totalShipCount;
+    private boolean configLoaded = false;
 
     public PlacementScreen(BattleshipGame game) {
         this.game = game;
@@ -66,27 +62,20 @@ public class PlacementScreen implements Screen {
 
         Gdx.input.setInputProcessor(stage);
 
-        // Reset placement state on show to avoid carrying over readiness from previous rounds
         if (game != null && game.getGameController() != null) {
             game.getGameController().setPlacementComplete(false);
             game.getGameController().setOpponentReady(false);
             game.getGameController().setGamePhase(GamePhase.PLACEMENT);
-            // also clear any previous boards if necessary
-            // Note: initializeGame will create fresh boards when hosting/joining, but ensure clean state here
         }
 
-        // Register disconnection callback so that if connection is severed during placement
-        // we return to the ConnectScreen (host/join screen).
         if (game.getNetworkController() != null) {
             game.getNetworkController().setDisconnectionCallback(new NetworkController.DisconnectionCallback() {
                 @Override
                 public void onDisconnected(boolean opponentDisconnected) {
-                    // Only act if we're in placement phase
                     if (game.getGameController().getGamePhase() == GamePhase.PLACEMENT) {
                         Gdx.app.postRunnable(new Runnable() {
                             @Override
                             public void run() {
-                                // Reset UI and go back to connect screen
                                 game.setScreen(new ConnectScreen(game));
                             }
                         });
@@ -118,14 +107,12 @@ public class PlacementScreen implements Screen {
         }
 
         float panelX = boardX + boardSize + 30;
-        float panelMaxHeight = boardSize; // Match board height
+        float panelMaxHeight = boardSize;
         infoPanel = new PlacementInfoPanel(game, game.getSkin(), stage, shipClassNames, shipLengths, shipCounts);
 
-        // Add the two tables to the stage so we can position them in columns
         stage.addActor(infoPanel.getShipListTable());
         stage.addActor(infoPanel.getControlsTable());
 
-        // Compute available width for side panels and layout in two columns (ship list + controls)
         float spacing = 10f;
         float rightMargin = 20f;
         float remainingWidth = screenWidth - panelX - rightMargin;
@@ -144,11 +131,7 @@ public class PlacementScreen implements Screen {
             infoPanel.getControlsTable().setSize(controlsWidth, panelMaxHeight);
             infoPanel.getControlsTable().setPosition(panelX + shipListWidth + spacing, boardY);
         } else {
-            // Not enough horizontal space: fall back to compact/default widths using setPosition
             infoPanel.setPosition(panelX, boardY, panelMaxHeight);
-            // Ensure the tables are positioned as setPosition determined
-            // setPosition already sizes and positions internal tables
-            // but we still want them to be visible as stage actors (already added)
         }
 
         infoPanel.setCallback(new PlacementInfoPanel.PlacementCallback() {
@@ -173,12 +156,10 @@ public class PlacementScreen implements Screen {
             }
         });
 
-
         uiInitialized = true;
     }
 
     private void exitToMainMenu() {
-        // Clean up network connections
         if (game.getNetworkController() != null) {
             if (game.getNetworkController().isHost()) {
                 game.getNetworkController().stopHosting();
@@ -187,7 +168,6 @@ public class PlacementScreen implements Screen {
             }
         }
 
-        // Return to main menu
         game.setScreen(new MainMenuScreen(game));
     }
 
@@ -220,25 +200,20 @@ public class PlacementScreen implements Screen {
     private void handleReset() {
         if (!isGameReady()) return;
 
-        // Clear the board
         game.getGameController().clear();
 
-        // Reset all placement tracking
         for (int i = 0; i < shipPlaced.length; i++) {
             shipPlaced[i] = 0;
         }
 
-        // Reset ship instance tracking
         for (int i = 0; i < shipInstancePlaced.length; i++) {
             for (int j = 0; j < shipInstancePlaced[i].length; j++) {
                 shipInstancePlaced[i][j] = false;
             }
         }
 
-        // Reset UI
         infoPanel.resetShipCounts();
 
-        // Select first ship
         selectedShipClass = 0;
         selectedShipIndex = 0;
         updateCurrentShipLabel();
@@ -253,7 +228,6 @@ public class PlacementScreen implements Screen {
         batch.draw(background, 0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         batch.end();
 
-        // If game not ready yet, show waiting message
         if (!isGameReady()) {
             batch.begin();
             game.getSkin().getFont("default").draw(batch, "Waiting for game configuration...",
@@ -264,7 +238,6 @@ public class PlacementScreen implements Screen {
             return;
         }
 
-        // Initialize UI once game is ready
         initializeUI();
         if (!uiInitialized) {
             stage.act(delta);
@@ -272,7 +245,6 @@ public class PlacementScreen implements Screen {
             return;
         }
 
-        // Load config once game is ready
         if (!configLoaded) {
             loadShipConfig();
             configLoaded = true;
@@ -280,7 +252,6 @@ public class PlacementScreen implements Screen {
 
         handleInput();
 
-        // Get placed ships
         boolean[][] shipGrid = null;
         Board board = game.getGameController().getMyBoard();
         if (board != null) {
@@ -293,12 +264,9 @@ public class PlacementScreen implements Screen {
             }
         }
 
-        // Draw grid with placed ships (isTrackingBoard = false, no hitGrid during placement)
         gridRenderer.drawGrid(false, shipGrid, null, delta);
         gridRenderer.drawCoordinateLabels();
 
-
-        // Draw hover preview on top of ships
         if (hoveredRow >= 0 && hoveredCol >= 0 && selectedShipClass < shipLengths.length) {
             int shipLength = shipLengths[selectedShipClass];
             boolean canPlace = checkCanPlace(hoveredRow, hoveredCol, shipLength, horizontalPlacement);
@@ -318,17 +286,14 @@ public class PlacementScreen implements Screen {
             if (config != null) {
                 System.arraycopy(config, 0, shipCounts, 0, Math.min(config.length, shipCounts.length));
 
-                // Recalculate total ship count
                 totalShipCount = 0;
                 for (int count : shipCounts) {
                     totalShipCount += count;
                 }
 
-                // Reset selection to valid range
                 selectedShipClass = 0;
                 selectedShipIndex = 0;
 
-                // Update info panel with new config
                 infoPanel.updateAllShipCounts(shipCounts, shipClassNames, shipLengths);
                 updateCurrentShipLabel();
             }
@@ -353,7 +318,6 @@ public class PlacementScreen implements Screen {
                 infoPanel.setOrientation(horizontalPlacement);
             }
 
-            // Middle click or Delete key - remove ship at this position
             if (Gdx.input.isButtonJustPressed(Input.Buttons.MIDDLE) || Gdx.input.isKeyJustPressed(Input.Keys.FORWARD_DEL)) {
                 removeShipAt(hoveredRow, hoveredCol);
             }
@@ -362,14 +326,13 @@ public class PlacementScreen implements Screen {
             hoveredCol = -1;
         }
 
-        // Keyboard shortcuts for ship selection
+
         if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_1)) selectShipClass(0);
         if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_2)) selectShipClass(1);
         if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_3)) selectShipClass(2);
         if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_4)) selectShipClass(3);
         if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_5)) selectShipClass(4);
 
-        // Tab to cycle through ship instances within selected class
         if (Gdx.input.isKeyJustPressed(Input.Keys.TAB)) {
             if (Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT) || Gdx.input.isKeyPressed(Input.Keys.SHIFT_RIGHT)) {
                 selectPreviousShipInstance();
@@ -392,25 +355,20 @@ public class PlacementScreen implements Screen {
         if (row < 0 || col < 0) return;
         if (!isGameReady()) return;
 
-        // Check if this specific ship was already placed
         boolean wasPlaced = shipInstancePlaced[selectedShipClass][selectedShipIndex];
-
         int fleetIndex = calculateFleetIndex(selectedShipClass, selectedShipIndex);
-
         boolean success = game.getGameController().placeShip(
             fleetIndex, row, col, horizontalPlacement
         );
 
         if (success) {
-            // Mark this specific ship instance as placed
             if (!wasPlaced) {
-                // First time placing this ship, increment counters
                 shipInstancePlaced[selectedShipClass][selectedShipIndex] = true;
                 shipPlaced[selectedShipClass]++;
                 updateShipCountDisplay(selectedShipClass);
                 checkAllShipsPlaced();
             }
-            // Ship was moved successfully, automatically select next ship
+
             if (!(fleetIndex == totalShipCount - 1)) selectNextShipInstance();
         }
     }
@@ -419,15 +377,12 @@ public class PlacementScreen implements Screen {
         if (row < 0 || col < 0) return;
         if (!isGameReady()) return;
 
-        // Find the ship at this position
         Ship ship = game.getGameController().getMyBoard().getShipAt(row, col);
         if (ship == null) return;
 
-        // Remove the ship from the board
         boolean removed = game.getGameController().getMyBoard().removeShip(ship);
         if (!removed) return;
 
-        // Find which ship instance this was and mark it as not placed
         boolean found = false;
         for (int classIdx = 0; classIdx < 5 && !found; classIdx++) {
             for (int shipIdx = 0; shipIdx < shipCounts[classIdx] && !found; shipIdx++) {
@@ -436,13 +391,11 @@ public class PlacementScreen implements Screen {
                     Ship fleetShip = game.getGameController().getGame().getFleet().get(classIdx)[shipIdx];
 
                     if (fleetShip == ship) {
-                        // Found the ship! Mark it as not placed
                         shipInstancePlaced[classIdx][shipIdx] = false;
                         shipPlaced[classIdx]--;
                         updateShipCountDisplay(classIdx);
                         checkAllShipsPlaced();
 
-                        // Select this ship for potential re-placement
                         selectedShipClass = classIdx;
                         selectedShipIndex = shipIdx;
                         updateCurrentShipLabel();
@@ -467,13 +420,12 @@ public class PlacementScreen implements Screen {
         if (shipClass < 0 || shipClass >= 5) return;
 
         selectedShipClass = shipClass;
-        selectedShipIndex = 0; // Start at first instance
+        selectedShipIndex = 0;
 
         updateCurrentShipLabel();
     }
 
     private void selectNextUnplacedShip() {
-        // Find next unplaced ship starting from current position
         for (int classIdx = 0; classIdx < 5; classIdx++) {
             for (int shipIdx = 0; shipIdx < shipCounts[classIdx]; shipIdx++) {
                 if (!shipInstancePlaced[classIdx][shipIdx]) {
@@ -484,17 +436,14 @@ public class PlacementScreen implements Screen {
                 }
             }
         }
-        // If no unplaced ships found, stay on current selection
+
     }
 
     private void selectNextShipInstance() {
-        // Calculate current flat index
         int currentFlatIndex = calculateFleetIndex(selectedShipClass, selectedShipIndex);
 
-        // Move to next ship (wraps around)
         int nextFlatIndex = (currentFlatIndex + 1) % totalShipCount;
 
-        // Convert flat index back to class and instance
         int[] classAndIndex = flatIndexToClassAndIndex(nextFlatIndex);
         selectedShipClass = classAndIndex[0];
         selectedShipIndex = classAndIndex[1];
@@ -503,16 +452,13 @@ public class PlacementScreen implements Screen {
     }
 
     private void selectPreviousShipInstance() {
-        // Calculate current flat index
         int currentFlatIndex = calculateFleetIndex(selectedShipClass, selectedShipIndex);
 
-        // Move to previous ship (wraps around)
         int prevFlatIndex = currentFlatIndex - 1;
         if (prevFlatIndex < 0) {
             prevFlatIndex = totalShipCount - 1;
         }
 
-        // Convert flat index back to class and instance
         int[] classAndIndex = flatIndexToClassAndIndex(prevFlatIndex);
         selectedShipClass = classAndIndex[0];
         selectedShipIndex = classAndIndex[1];
@@ -520,9 +466,6 @@ public class PlacementScreen implements Screen {
         updateCurrentShipLabel();
     }
 
-    /**
-     * Convert a flat fleet index to [shipClass, shipIndex] array.
-     */
     private int[] flatIndexToClassAndIndex(int flatIndex) {
         int accumulated = 0;
         for (int classIdx = 0; classIdx < 5; classIdx++) {
@@ -531,7 +474,7 @@ public class PlacementScreen implements Screen {
             }
             accumulated += shipCounts[classIdx];
         }
-        // Should not reach here if flatIndex is valid
+
         return new int[]{0, 0};
     }
 
@@ -554,6 +497,7 @@ public class PlacementScreen implements Screen {
                 break;
             }
         }
+
         infoPanel.setConfirmEnabled(allPlaced);
     }
 
@@ -564,7 +508,6 @@ public class PlacementScreen implements Screen {
 
         int fleetIndex = calculateFleetIndex(selectedShipClass, selectedShipIndex);
 
-        // Check if fleet has this ship class
         if (!game.getGameController().getGame().getFleet().containsKey(selectedShipClass)) return false;
 
         Ship[] shipsOfClass = game.getGameController().getGame().getFleet().get(selectedShipClass);
@@ -576,34 +519,26 @@ public class PlacementScreen implements Screen {
         return game.getGameController().getMyBoard().canPlace(ship, row, col, horizontal);
     }
 
-
     @Override
     public void resize(int width, int height) {
-        // The resize method can be called before show()/initializeUI() completed.
-        // Guard against null pointers by updating only when components are available.
         if (stage != null) {
             stage.getViewport().update(width, height, true);
         }
 
-        // Recalculate board dimensions (safe to do even if render/UI not initialized)
         boardSize = height * 0.8f;
         boardX = 50;
         boardY = (height - boardSize) / 2;
 
-        // Ensure we have a reasonable gridSize. Try to read from the game controller when available,
-        // otherwise keep existing value or fall back to 10.
         if (game != null && game.getGameController() != null && game.getGameController().getMyBoard() != null) {
             gridSize = game.getGameController().getMyBoard().getSize();
         } else if (gridSize <= 0) {
-            gridSize = 10; // sensible default until real board is available
+            gridSize = 10;
         }
 
-        // Update grid renderer bounds only if it has been initialized
         if (gridRenderer != null) {
             gridRenderer.setBounds(boardX, boardY, boardSize, gridSize);
         }
 
-        // Reposition info panel with max height if available
         float panelX = boardX + boardSize + 30;
         float panelMaxHeight = boardSize;
         if (infoPanel != null) {
@@ -624,7 +559,7 @@ public class PlacementScreen implements Screen {
                 infoPanel.getControlsTable().setSize(controlsWidth, panelMaxHeight);
                 infoPanel.getControlsTable().setPosition(panelX + shipListWidth + spacing, boardY);
             } else {
-                // Fallback to default positioning
+
                 infoPanel.setPosition(panelX, boardY, panelMaxHeight);
             }
         }
@@ -632,15 +567,16 @@ public class PlacementScreen implements Screen {
 
     @Override
     public void pause() {
+        //
     }
 
     @Override
     public void resume() {
+        //
     }
 
     @Override
     public void hide() {
-        // Clear disconnection callback to avoid holding references when leaving the screen
         if (game.getNetworkController() != null) {
             game.getNetworkController().setDisconnectionCallback(null);
         }

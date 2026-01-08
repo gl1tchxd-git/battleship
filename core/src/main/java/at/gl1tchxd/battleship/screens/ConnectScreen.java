@@ -70,12 +70,11 @@ public class ConnectScreen implements Screen {
             });
         }
 
-        // Position both widgets side by side, with their midpoint at screen center
         float screenWidth = Gdx.graphics.getWidth();
         float spacing = 175;
         float widgetY = 100;
-        float widgetHeight = 375; // Height from widgetY to near top of screen
-        float widgetWidth = 250f; // Same width for both widgets
+        float widgetHeight = 375;
+        float widgetWidth = 250f;
 
         Table hostTable = connectHost.getTable();
         Table clientTable = connectClient.getTable();
@@ -84,19 +83,15 @@ public class ConnectScreen implements Screen {
         float hostX = centerX - widgetWidth - spacing / 2f;
         float clientX = centerX + spacing / 2f;
 
-        // Remove tables from stage, set bounds, then re-add
         hostTable.remove();
         clientTable.remove();
 
-        // Set bounds (position + size) before adding back to stage
         hostTable.setBounds(hostX, widgetY, widgetWidth, widgetHeight);
         clientTable.setBounds(clientX, widgetY, widgetWidth, widgetHeight);
 
-        // Re-add to stage
         stage.addActor(hostTable);
         stage.addActor(clientTable);
 
-        // Force layout
         hostTable.invalidate();
         clientTable.invalidate();
         hostTable.layout();

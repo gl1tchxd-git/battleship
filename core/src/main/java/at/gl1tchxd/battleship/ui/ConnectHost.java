@@ -30,7 +30,6 @@ public class ConnectHost {
 
     private HostCallback callback;
 
-    /** Width of the entire widget. Labels and inputs each take half this width. */
     private float widgetWidth = 250f;
 
     public interface HostCallback {
@@ -59,7 +58,6 @@ public class ConnectHost {
     private void createUIContent() {
         float halfWidth = widgetWidth / 2f;
 
-        // Top section for inputs
         Table topSection = new Table();
         topSection.top().left();
 
@@ -70,7 +68,6 @@ public class ConnectHost {
         topSection.add(portLabel).width(halfWidth).padRight(5).padBottom(10);
         topSection.add(portField).width(halfWidth).left().padBottom(10).row();
 
-        // Initialize ship config fields (5 ship types: 5, 4, 3, 3, 2 lengths)
         Label shipConfigLabel = new Label("Ship Amount:", skin);
         shipConfigLabel.setAlignment(com.badlogic.gdx.utils.Align.center);
         topSection.add(shipConfigLabel).colspan(2).center().padBottom(5).row();
@@ -88,7 +85,6 @@ public class ConnectHost {
             topSection.add(shipConfigField[i]).width(halfWidth).left().padBottom(5).row();
         }
 
-        // Bottom section for button and status
         Table bottomSection = new Table();
         bottomSection.top();
 
@@ -108,7 +104,6 @@ public class ConnectHost {
         statusLabel.setWrap(true);
         bottomSection.add(statusLabel).width(widgetWidth).height(60).center().row();
 
-        // If already hosting when UI is created, switch button label and disable inputs
         if (networkController != null && networkController.isHost()) {
             hostButton.getLabel().setText("Cancel");
             hostButton.setDisabled(false);
@@ -116,13 +111,11 @@ public class ConnectHost {
             setStatus("Hosting on port " + portField.getText().trim() + ". Waiting for player...", false);
         }
 
-        // Add sections to main table - topSection expands to fill available space, bottomSection at bottom
         table.add(topSection).expandX().expandY().top().left().row();
         table.add(bottomSection).expandX().height(150).bottom().row();
     }
 
     private void handleHostClick() {
-        // If currently hosting, treat click as cancel
         if (networkController != null && networkController.isHost()) {
             networkController.stopHosting();
             hostButton.getLabel().setText("Start Hosting");
@@ -134,7 +127,6 @@ public class ConnectHost {
 
         try {
             int port = getPort();
-//            int boardSize = getBoardSize();
             int[] shipConfig = getShipConfig();
 
             setStatus("Starting server on port " + port + "...", false);
@@ -142,7 +134,6 @@ public class ConnectHost {
 
             try {
                 networkController.hostGame(port, 10, shipConfig);
-                // Hosting started successfully; allow canceling
                 hostButton.getLabel().setText("Cancel");
                 hostButton.setDisabled(false);
                 setInputsEnabled(false);
@@ -185,7 +176,7 @@ public class ConnectHost {
 
     private void setInputsEnabled(boolean enabled) {
         portField.setDisabled(!enabled);
-        // boardSizeField may be null in some UI variants, guard
+
         if (boardSizeField != null) boardSizeField.setDisabled(!enabled);
         if (shipConfigField != null) {
             for (TextField t : shipConfigField) {
@@ -231,18 +222,15 @@ public class ConnectHost {
         table.setSize(width, height);
     }
 
-    /** Set the widget width. Labels and inputs each take half this width. */
     public void setWidgetWidth(float width) {
         this.widgetWidth = width;
         rebuildUI();
     }
 
-    /** Get the current widget width. */
     public float getWidgetWidth() {
         return widgetWidth;
     }
 
-    /** Rebuild the UI with the current widgetWidth. */
     private void rebuildUI() {
         table.clear();
         createUIContent();
@@ -266,6 +254,6 @@ public class ConnectHost {
     }
 
     public void dispose() {
-        // Stage and skin are owned by the game/screen, so don't dispose them here
+        //
     }
 }

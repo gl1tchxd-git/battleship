@@ -23,7 +23,6 @@ public class ConnectClient {
 
     private ClientCallback callback;
 
-    /** Width of the entire widget. Labels and inputs each take half this width. */
     private float widgetWidth = 250f;
 
     public interface ClientCallback {
@@ -51,7 +50,6 @@ public class ConnectClient {
     private void createUIContent() {
         float halfWidth = widgetWidth / 2f;
 
-        // Top section for inputs
         Table topSection = new Table();
         topSection.top().left();
 
@@ -69,7 +67,6 @@ public class ConnectClient {
         topSection.add(portLabel).width(halfWidth).padRight(5).padBottom(10);
         topSection.add(portField).width(halfWidth).left().padBottom(10).row();
 
-        // Bottom section for button and status
         Table bottomSection = new Table();
         bottomSection.top();
 
@@ -89,20 +86,17 @@ public class ConnectClient {
         statusLabel.setWrap(true);
         bottomSection.add(statusLabel).width(widgetWidth).height(60).center().row();
 
-        // If this instance is hosting, disable connect and show a helpful message
         if (networkController != null && networkController.isHost()) {
             connectButton.setDisabled(true);
             setStatus("This instance is currently hosting a game — you cannot join a game here.", true);
         }
 
-        // Add sections to main table - topSection expands to fill available space, bottomSection at bottom
         table.add(topSection).expandX().expandY().top().left().row();
         table.add(bottomSection).expandX().height(150).bottom().row();
     }
 
     private void handleConnectClick() {
         try {
-            // Prevent attempting to join when hosting (defensive check)
             if (networkController != null && networkController.isHost()) {
                 setStatus("Cannot join while hosting a game on this instance.", true);
                 connectButton.setDisabled(true);
@@ -173,18 +167,15 @@ public class ConnectClient {
         table.setSize(width, height);
     }
 
-    /** Set the widget width. Labels and inputs each take half this width. */
     public void setWidgetWidth(float width) {
         this.widgetWidth = width;
         rebuildUI();
     }
 
-    /** Get the current widget width. */
     public float getWidgetWidth() {
         return widgetWidth;
     }
 
-    /** Rebuild the UI with the current widgetWidth. */
     private void rebuildUI() {
         table.clear();
         createUIContent();
@@ -200,7 +191,6 @@ public class ConnectClient {
         statusLabel.setText("");
         connectButton.setDisabled(false);
 
-        // If the instance is hosting, keep connect disabled and show message
         if (networkController != null && networkController.isHost()) {
             connectButton.setDisabled(true);
             setStatus("This instance is currently hosting a game — you cannot join a game here.", true);
@@ -208,6 +198,6 @@ public class ConnectClient {
     }
 
     public void dispose() {
-        // Stage and skin are owned by the game/screen, so don't dispose them here
+        //
     }
 }
