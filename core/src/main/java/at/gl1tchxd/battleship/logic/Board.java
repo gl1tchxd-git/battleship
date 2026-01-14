@@ -160,10 +160,9 @@ public class Board {
         return copy;
     }
 
-    public boolean clear() {
+    public void clear() {
         if (trackingMode) {
             for (Cell[] row : grid) Arrays.fill(row, Cell.EMPTY);
-            return true;
         }
         Set<Ship> seen = new HashSet<>();
         for (int r = 0; r < board.length; r++) {
@@ -177,7 +176,6 @@ public class Board {
             s.place(-1, -1, false);
         }
         for (Cell[] row : grid) Arrays.fill(row, Cell.EMPTY);
-        return true;
     }
 
     @Override
