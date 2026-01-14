@@ -133,7 +133,13 @@ public class ConnectHost {
             hostButton.setDisabled(true);
 
             try {
-                networkController.hostGame(port, 10, shipConfig);
+                if (networkController != null) {
+                    networkController.hostGame(port, 10, shipConfig);
+                } else {
+                    setStatus("Network controller not initialized", true);
+                    hostButton.setDisabled(false);
+                    return;
+                }
                 hostButton.getLabel().setText("Cancel");
                 hostButton.setDisabled(false);
                 setInputsEnabled(false);

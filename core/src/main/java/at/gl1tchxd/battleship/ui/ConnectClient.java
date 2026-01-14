@@ -118,12 +118,18 @@ public class ConnectClient {
             connectButton.setDisabled(true);
 
             try {
-                networkController.joinGame(host, port);
-                setStatus("Connected to " + host + ":" + port, false);
+                if (networkController != null) {
+                    networkController.joinGame(host, port);
 
-                if (callback != null) {
-                    callback.onConnectSuccess(host, port);
+                    setStatus("Connected to " + host + ":" + port, false);
+
+                    if (callback != null) {
+                        callback.onConnectSuccess(host, port);
+                    }
+                } else {
+                    setStatus("Network controller not initialized", true);
                 }
+
             } catch (Exception e) {
                 setStatus("Failed to connect: " + e.getMessage(), true);
                 connectButton.setDisabled(false);

@@ -68,7 +68,7 @@ public class PlacementScreen implements Screen {
             game.getGameController().setGamePhase(GamePhase.PLACEMENT);
         }
 
-        if (game.getNetworkController() != null) {
+        if (game != null && game.getNetworkController() != null) {
             game.getNetworkController().setDisconnectionCallback(new NetworkController.DisconnectionCallback() {
                 @Override
                 public void onDisconnected(boolean opponentDisconnected) {

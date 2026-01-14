@@ -242,14 +242,13 @@ public class PlacementInfoPanel {
     public void setPosition(float x, float y, float maxHeight) {
         float totalWidth = 250f;
         float shipListWidth = totalWidth * 0.65f;
-        float controlsWidth = totalWidth - shipListWidth - 10f;
 
         contentTable.pack();
         contentTable.setSize(shipListWidth, maxHeight);
         contentTable.setPosition(x, y);
 
         controlsTable.pack();
-        controlsTable.setSize(Math.max(controlsWidth, 120f), maxHeight);
+        controlsTable.setSize(120f, maxHeight);
         controlsTable.setPosition(x + shipListWidth + 10f, y);
     }
 

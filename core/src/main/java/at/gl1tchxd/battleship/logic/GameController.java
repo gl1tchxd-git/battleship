@@ -159,7 +159,7 @@ public class GameController {
         if (myBoard == null) throw new IllegalStateException("My board not initialized");
 
         boolean hit = myBoard.attack(row, col);
-        Ship hitShip = null;
+        Ship hitShip;
         boolean shipSunk = false;
 
         if (hit) {
