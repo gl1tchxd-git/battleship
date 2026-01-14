@@ -24,7 +24,6 @@ public class ClientSocket implements Socket{
         this.messageHandler = messageHandler;
         this.client = new Client();
 
-        // Register classes BEFORE connecting (must match server registration order)
         kryo = this.client.getKryo();
         kryo.register(Message.class);
         kryo.register(MessageType.class);
@@ -45,7 +44,6 @@ public class ClientSocket implements Socket{
         client.addListener(new Listener() {
             @Override
             public void connected(Connection connection) {
-                System.out.println("Connected to server: " + connection.getRemoteAddressTCP());
                 serverConnection = connection;
                 if (messageHandler != null) {
                     messageHandler.onConnectedToServer(connection);
@@ -61,7 +59,6 @@ public class ClientSocket implements Socket{
 
             @Override
             public void disconnected(Connection connection) {
-                System.out.println("Disconnected from server");
                 serverConnection = null;
                 if (messageHandler != null) {
                     messageHandler.onDisconnectedFromServer(connection);
@@ -87,9 +84,6 @@ public class ClientSocket implements Socket{
         return serverConnection;
     }
 
-    /**
-     * Stop and close the client, disconnecting from server and releasing resources.
-     */
     public void stop() {
         try {
             if (client != null) {
@@ -103,7 +97,6 @@ public class ClientSocket implements Socket{
                 }
             }
         } catch (Exception e) {
-            System.out.println("Error while stopping client: " + e.getMessage());
         } finally {
             serverConnection = null;
             client = null;

@@ -1,4 +1,3 @@
-// java
 package at.gl1tchxd.battleship.logic;
 
 public class Ship {

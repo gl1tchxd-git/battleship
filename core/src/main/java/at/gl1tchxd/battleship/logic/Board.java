@@ -59,7 +59,6 @@ public class Board {
         if (row < 0 || col < 0) throw new IndexOutOfBoundsException("row and col must be >= 0");
         int endRow = horizontal ? row : row + ship.getLength() - 1;
         int endCol = horizontal ? col + ship.getLength() - 1 : col;
-        // if start or end out of bounds, placement is not possible (but not an exception)
         if (!inBounds(row, col) || !inBounds(endRow, endCol)) return false;
 
         for (int i = 0; i < ship.getLength(); i++) {
@@ -191,11 +190,11 @@ public class Board {
         int idxWidth = Math.max(2, String.valueOf(n - 1).length());
 
         final String RESET = "\u001B[0m";
-        final String FG_SHIP = "\u001B[95m"; // bright magenta for ships
-        final String FG_HIT = "\u001B[91m";  // bright red for hits
-        final String FG_MISS = "\u001B[96m"; // bright cyan for misses
-        final String FG_EMPTY = "\u001B[90m"; // dark gray for empty cells
-        final String FG_INDEX = "\u001B[37m"; // white for indices
+        final String FG_SHIP = "\u001B[95m";
+        final String FG_HIT = "\u001B[91m";
+        final String FG_MISS = "\u001B[96m";
+        final String FG_EMPTY = "\u001B[90m";
+        final String FG_INDEX = "\u001B[37m";
 
         if (useAnsi) {
             for (int i = 0; i < idxWidth + 1; i++) sb.append(' ');

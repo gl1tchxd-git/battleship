@@ -127,8 +127,6 @@ public class GameController {
             myBoard = game.getBoard();
             trackingBoard = new Board(boardSize, true);
             currentPhase = GamePhase.PLACEMENT;
-
-            // Reset placement/ready state for a fresh game
             placementComplete = false;
             opponentReady = false;
             currentTurnPlayerId = null;
@@ -199,7 +197,6 @@ public class GameController {
         int[][] result = new int[5][2];
 
         if (game == null) {
-            // Return empty result if game not initialized
             return result;
         }
 

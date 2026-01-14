@@ -232,6 +232,14 @@ public class GameScreen implements Screen {
     private void performAttack(int row, int col) {
         if (!game.getGameController().isMyTurn()) return;
 
+        Board trackingBoard = game.getGameController().getTrackingBoard();
+        if (trackingBoard != null) {
+            String cellInfo = trackingBoard.getCellInfo(row, col);
+            if (cellInfo.equals("HIT") || cellInfo.equals("MISS")) {
+                return;
+            }
+        }
+
         NetworkController nc = game.getNetworkController();
         if (nc != null) {
             nc.sendAttack(row, col);

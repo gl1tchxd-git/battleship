@@ -9,16 +9,6 @@ public class Game {
     private final int[] shipConfig;
     private final Random rand = new Random();
 
-    /**
-     * Constructor accepts shipConfig in this order:
-     *   shipConfig[0] = count of carrier (length 5)
-     *   shipConfig[1] = count of battleship (length 4)
-     *   shipConfig[2] = count of cruiser (length 3)
-     *   shipConfig[3] = count of submarine (length 3)
-     *   shipConfig[4] = count of destroyer (length 2)
-     *
-     * Ensures total ship cells <= 80% of board area.
-     */
     public Game(int boardSize, int[] shipConfig) {
         if (boardSize <= 0) throw new IllegalArgumentException("boardSize must be > 0");
         if (shipConfig == null) throw new IllegalArgumentException("shipConfig must not be null");
@@ -27,7 +17,7 @@ public class Game {
         this.boardSize = boardSize;
         this.board = new Board(boardSize);
 
-        int[] lengths = new int[] {5, 4, 3, 3, 2}; // standard size classes
+        int[] lengths = new int[] {5, 4, 3, 3, 2};
         int totalCells = 0;
         for (int i = 0; i < shipConfig.length; i++) {
             int count = shipConfig[i];
@@ -52,8 +42,6 @@ public class Game {
         this.shipConfig = Arrays.copyOf(shipConfig, shipConfig.length);
     }
 
-    // Place the ship from the fleet at index. Returns true on success.
-    // If ship is already placed, this acts as a move operation.
     public boolean placeShip(int index, int row, int col, boolean horizontal) {
         if (!validIndex(index)) throw new IndexOutOfBoundsException("index out of range: " + index);
         if (row < 0 || col < 0) throw new IndexOutOfBoundsException("row and col must be >= 0");
@@ -71,7 +59,6 @@ public class Game {
                 return true;
             }
 
-            // Restore old placement - ship state was reset by removeShip
             board.placeShip(ship, oldRow, oldCol, oldHorizontal);
             return false;
         }
