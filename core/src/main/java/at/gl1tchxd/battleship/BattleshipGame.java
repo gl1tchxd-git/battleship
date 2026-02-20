@@ -132,7 +132,7 @@ public class BattleshipGame extends Game {
     }
 
     private void createDefaultSkin() {
-        FreeTypeFontGenerator fontGen = new FreeTypeFontGenerator(Gdx.files.internal("fonts/minecraft.ttf"));
+        FreeTypeFontGenerator fontGen = new FreeTypeFontGenerator(Gdx.files.internal("fonts/default.ttf"));
         FreeTypeFontGenerator.FreeTypeFontParameter params = new FreeTypeFontGenerator.FreeTypeFontParameter();
         params.padLeft = 2;
         params.shadowColor = Color.CLEAR;

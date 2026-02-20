@@ -45,12 +45,13 @@ public class PlacementScreen implements Screen {
     private final int[] shipPlaced = {0, 0, 0, 0, 0};
     private final String[] shipClassNames = {"Carrier", "Battleship", "Cruiser", "Submarine", "Destroyer"};
     private final int[] shipLengths = {5, 4, 3, 3, 2};
-    private final boolean[][] shipInstancePlaced = new boolean[5][50];
+    private final boolean[][] shipInstancePlaced;
     private int totalShipCount;
     private boolean configLoaded = false;
 
     public PlacementScreen(BattleshipGame game) {
         this.game = game;
+        shipInstancePlaced = new boolean[5][];
     }
 
     @Override
@@ -66,6 +67,10 @@ public class PlacementScreen implements Screen {
             game.getGameController().setPlacementComplete(false);
             game.getGameController().setOpponentReady(false);
             game.getGameController().setGamePhase(GamePhase.PLACEMENT);
+
+            for (int i = 0; i < 5; i++) {
+                shipInstancePlaced[i] = new boolean[shipCounts[i]];
+            }
         }
 
         if (game != null && game.getNetworkController() != null) {
@@ -286,13 +291,23 @@ public class PlacementScreen implements Screen {
             if (config != null) {
                 System.arraycopy(config, 0, shipCounts, 0, Math.min(config.length, shipCounts.length));
 
+                for (int i = 0; i < 5; i++) {
+                    shipInstancePlaced[i] = new boolean[shipCounts[i]];
+                }
+
                 totalShipCount = 0;
                 for (int count : shipCounts) {
                     totalShipCount += count;
                 }
-
-                selectedShipClass = 0;
+    
+                selectedShipClass = -1;
                 selectedShipIndex = 0;
+                for (int i = 0; i < config.length; i++) {
+                    if (config[i] > 0) {
+                        selectedShipClass = i;
+                        break;
+                    }
+                }
 
                 infoPanel.updateAllShipCounts(shipCounts, shipClassNames, shipLengths);
                 updateCurrentShipLabel();

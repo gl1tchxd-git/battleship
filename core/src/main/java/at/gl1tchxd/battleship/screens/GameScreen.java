@@ -240,9 +240,9 @@ public class GameScreen implements Screen {
             }
         }
 
-        NetworkController nc = game.getNetworkController();
-        if (nc != null) {
-            nc.sendAttack(row, col);
+        if (game.getNetworkController() != null) {
+            if (game.getGameController().getTrackingBoard().getCellInfo(row, col) != "EMPTY");
+            game.getNetworkController().sendAttack(row, col);
         }
     }
 
