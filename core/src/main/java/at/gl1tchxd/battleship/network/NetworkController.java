@@ -242,6 +242,10 @@ public class NetworkController {
 
         GameController.AttackResult result = gameController.attackWithResult(row, col);
 
+        if (attackSoundCallback != null) {
+            attackSoundCallback.onAttackSound(result.isHit());
+        }
+
         Map<String, Object> data = new HashMap<>();
         data.put("isHit", result.isHit());
         data.put("isShipSunk", result.isShipSunk());
@@ -270,6 +274,7 @@ public class NetworkController {
             alreadyAttacked = cellInfo.equals("HIT") || cellInfo.equals("MISS");
         }
 
+        // Play sound for the attacker (player who initiated the attack)
         if (!alreadyAttacked && attackSoundCallback != null) {
             attackSoundCallback.onAttackSound(isHit);
         }

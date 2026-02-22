@@ -382,9 +382,9 @@ public class PlacementScreen implements Screen {
                 shipPlaced[selectedShipClass]++;
                 updateShipCountDisplay(selectedShipClass);
                 checkAllShipsPlaced();
-            }
 
-            if (!(fleetIndex == totalShipCount - 1)) selectNextShipInstance();
+                selectNextUnplacedShip();
+            }
         }
     }
 
